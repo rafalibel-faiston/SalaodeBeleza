@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import api from '../api/client';
+import CalendarPicker from '../components/CalendarPicker';
+import BeforeAfterSlider from '../components/BeforeAfterSlider';
 
 // ── Animation presets ─────────────────────────────────────────
 const ease = [0.22, 1, 0.36, 1];
@@ -250,12 +252,11 @@ export default function ClientBooking() {
 
         <div className="story-inner">
 
-          {/* LEFT — organic blob image with parallax scale */}
+          {/* LEFT — organic blob with before/after slider inside */}
           <motion.div className="story-image-blob" style={{ y:imgY, scale:imgScale }}>
-            <img
-              src="/fotos/volume-luxxo-fio-5D.png"
-              alt="Extensão de Cílios Premium"
-              onError={(e) => { e.target.src = FALLBACK; }}
+            <BeforeAfterSlider
+              before="/fotos/volume-brasileiro-fio-y.png"
+              after="/fotos/volume-mega-luxxo.png"
             />
           </motion.div>
 
@@ -361,8 +362,10 @@ export default function ClientBooking() {
           </div>
           <div className="form-group">
             <label>Data</label>
-            <input type="date" name="scheduled_date" required onChange={handleChange}
-              min={new Date().toISOString().split('T')[0]} value={formData.scheduled_date} />
+            <CalendarPicker
+              value={formData.scheduled_date}
+              onChange={(date) => setFormData(p => ({ ...p, scheduled_date: date }))}
+            />
           </div>
           <div className="form-group">
             <label>Horário</label>
