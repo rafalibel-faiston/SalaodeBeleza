@@ -163,7 +163,7 @@ export default function ClientBooking() {
     <div>
 
       {/* ══════════════ HERO ══════════════════════════════════ */}
-      <section style={{ position:'relative', overflow:'hidden', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'linear-gradient(160deg,#fdf1f6 0%,#fff8fb 50%,#fdfafb 100%)' }}>
+      <section className="hero-section">
 
         {/* Floating gradient blobs */}
         <motion.div className="blob blob-1" style={{ y: heroBlobY }}
