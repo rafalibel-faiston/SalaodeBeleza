@@ -354,6 +354,102 @@ body {
   text-transform: uppercase;
 }
 
+/* ─── CATALOG SECTION (with bg decoration) ─────────────────── */
+.catalog-section {
+  position: relative;
+  background: linear-gradient(180deg, #fdfafb 0%, #fdf1f6 40%, #fdfafb 100%);
+  overflow: hidden;
+  padding-bottom: 20px;
+}
+.catalog-section::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(216,67,139,0.08);
+  top: -200px; right: -200px;
+  pointer-events: none;
+}
+.catalog-section::after {
+  content: '';
+  position: absolute;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(216,67,139,0.06);
+  bottom: -100px; left: -100px;
+  pointer-events: none;
+}
+
+/* ─── FORM SECTION (dark, with blobs) ───────────────────────── */
+.form-section {
+  position: relative;
+  background: var(--dark);
+  overflow: hidden;
+  padding: 0 20px 80px;
+}
+.form-section .section-title        { color: #fff; }
+.form-section .section-title-accent { color: var(--pink); }
+.form-section .section-label        { color: var(--pink); }
+
+.form-section-deco {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(70px);
+}
+.form-deco-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(216,67,139,0.18) 0%, transparent 70%);
+  top: -150px; right: -120px;
+}
+.form-deco-2 {
+  width: 320px; height: 320px;
+  background: radial-gradient(circle, rgba(216,67,139,0.12) 0%, transparent 70%);
+  bottom: -80px; left: -80px;
+}
+.form-deco-3 {
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(245,208,228,0.20) 0%, transparent 70%);
+  top: 40%; left: 30%;
+}
+
+/* Override container on dark bg */
+.form-section .container {
+  border-color: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 48px rgba(0,0,0,0.30);
+}
+.form-section .container input,
+.form-section .container select {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.form-section .container input::placeholder { color: rgba(255,255,255,0.35); }
+.form-section .container input:focus,
+.form-section .container select:focus {
+  background: rgba(255,255,255,0.12);
+  border-color: var(--pink);
+}
+.form-section .container select option { background: #222; color: #fff; }
+.form-section .form-group label { color: rgba(255,255,255,0.7); }
+
+/* Calendar on dark bg */
+.form-section .cal-wrap {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.12);
+}
+.form-section .cal-month-label,
+.form-section .cal-day { color: rgba(255,255,255,0.85); }
+.form-section .cal-dis  { color: rgba(255,255,255,0.2); }
+.form-section .cal-blk  { color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); }
+.form-section .cal-avail:hover { background: rgba(216,67,139,0.25); color: #fff; }
+.form-section .cal-legend { color: rgba(255,255,255,0.45); }
+.form-section .cal-nav { color: rgba(255,255,255,0.5); }
+.form-section .cal-nav:hover { background: rgba(216,67,139,0.2); color: var(--pink); }
+.form-section .cal-weekdays span { color: rgba(255,255,255,0.35); }
+
 /* ─── CATALOG ───────────────────────────────────────────────── */
 .catalog-grid {
   display: grid;
@@ -391,7 +487,8 @@ body {
   background: var(--dark);
   color: rgba(255,255,255,0.85);
   padding: 44px 40px;
-  max-width: 800px;
+  max-width: 860px;
+  width: calc(100% - 40px);
   margin: 0 auto 60px auto;
   border-radius: 28px;
   position: relative;

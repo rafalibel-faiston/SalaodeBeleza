@@ -283,6 +283,7 @@ export default function ClientBooking() {
       </section>
 
       {/* ══════════════ CATALOG ═══════════════════════════════ */}
+      <div className="catalog-section">
       <div className="section-header">
         <p className="section-label">✦ Procedimentos</p>
         <h2 className="section-title">Nosso <span className="section-title-accent">Catálogo</span></h2>
@@ -318,9 +319,10 @@ export default function ClientBooking() {
           </motion.div>
         ))}
       </motion.section>
+      </div>{/* /catalog-section */}
 
       {/* ══════════════ INFO ══════════════════════════════════ */}
-      <motion.section className="info-box" style={{ margin:'0 20px 60px' }}
+      <motion.section className="info-box"
         initial={{ opacity:0, y:40 }} whileInView={{ opacity:1, y:0 }}
         viewport={{ once:true }} transition={{ duration:0.7 }}>
         <h3>✨ Como funciona o atendimento?</h3>
@@ -332,12 +334,17 @@ export default function ClientBooking() {
       </motion.section>
 
       {/* ══════════════ FORM ══════════════════════════════════ */}
-      <div className="section-header" style={{ paddingBottom:'20px' }}>
-        <p className="section-label">✦ Reserva</p>
-        <h2 className="section-title">Agende sua <span className="section-title-accent">Sessão</span></h2>
-      </div>
+      <div className="form-section" ref={formRef}>
+        <div className="form-section-deco form-deco-1" />
+        <div className="form-section-deco form-deco-2" />
+        <div className="form-section-deco form-deco-3" />
 
-      <motion.div className="container" ref={formRef} style={{ marginBottom:'80px' }}
+        <div className="section-header" style={{ paddingBottom:'20px' }}>
+          <p className="section-label" style={{ color:'var(--pink)' }}>✦ Reserva</p>
+          <h2 className="section-title">Agende sua <span className="section-title-accent">Sessão</span></h2>
+        </div>
+
+      <motion.div className="container" style={{ marginBottom:'0' }}
         initial={{ opacity:0, y:40 }} whileInView={{ opacity:1, y:0 }}
         viewport={{ once:true }} transition={{ duration:0.7 }}>
         <form onSubmit={handleSubmit}>
@@ -381,6 +388,7 @@ export default function ClientBooking() {
           </motion.button>
         </form>
       </motion.div>
+      </div>{/* /form-section */}
 
       {/* ══════════════ MODAL ═════════════════════════════════ */}
       <AnimatePresence>
