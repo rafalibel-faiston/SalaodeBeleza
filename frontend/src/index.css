@@ -1,10 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,400&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Syne:wght@600;700;800;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;0,800;1,400&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
   --pink:       #d8438b;
   --pink-dark:  #a0195e;
   --pink-light: #fdf1f6;
   --pink-mid:   #f5d0e4;
+  --pink-950:   #0f0614;
   --dark:       #111118;
   --bg:         #fdfafb;
   --white:      #ffffff;
@@ -19,6 +20,15 @@
   --text-main:  var(--text);
   --text-muted: var(--muted);
   --border-color: var(--border);
+  /* glass */
+  --glass-bg:     rgba(255,255,255,0.45);
+  --glass-border: rgba(255,255,255,0.55);
+  --glass-blur:   blur(28px) saturate(140%);
+  /* fonts */
+  --font-sans:    'Outfit', 'Inter', sans-serif;
+  --font-display: 'Syne', sans-serif;
+  --font-serif:   'Fraunces', Georgia, serif;
+  --font-mono:    'JetBrains Mono', 'Courier New', monospace;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,9 +38,69 @@ html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+}
+
+/* ─── DESIGN SYSTEM: GLASS & GLOW ────────────────────────── */
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(216,67,139,0.05);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+.glass-panel:hover {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.09), 0 2px 8px rgba(216,67,139,0.09);
+}
+
+.glow-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(216,67,139,0.22);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 1px rgba(216,67,139,0.07),
+    0 8px 32px rgba(216,67,139,0.14),
+    0 2px 8px rgba(160,25,94,0.08);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+.glow-card:hover {
+  box-shadow:
+    0 0 0 1px rgba(216,67,139,0.13),
+    0 12px 40px rgba(216,67,139,0.2),
+    0 4px 12px rgba(160,25,94,0.12);
+  transform: translateY(-1px);
+}
+
+/* ─── ANIMATE FLOAT ──────────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-5px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ─── ACTIVE SCALE (TACTILE) ──────────────────────────────── */
+.btn-tactile {
+  transition: transform 0.12s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-tactile:active {
+  transform: scale(0.95) !important;
+}
+
+/* ─── GRADIENT TEXT ──────────────────────────────────────── */
+.text-gradient-pink {
+  background: linear-gradient(135deg, var(--pink-dark) 0%, var(--pink) 60%, #e066a8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* ─── HERO ──────────────────────────────────────────────────── */
