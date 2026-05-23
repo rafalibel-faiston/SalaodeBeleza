@@ -12,11 +12,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const proxy = createProxyMiddleware({
   target: BACKEND,
   changeOrigin: true,
-  on: {
-    error: (err, req, res) => {
-      console.error('Proxy error:', err.message);
-      res.status(502).json({ error: 'Backend indisponível' });
-    },
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err.message);
+    res.status(502).json({ error: 'Backend indisponível' });
   },
 });
 
