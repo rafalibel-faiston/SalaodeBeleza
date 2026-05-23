@@ -27,25 +27,36 @@ function isApiRoute(url) {
 app.use((req, res, next) => {
   if (!isApiRoute(req.url)) return next();
 
-  const options = {
-    hostname: BACKEND_HOST,
-    port: 443,
-    path: req.url,
-    method: req.method,
-    headers: { ...req.headers, host: BACKEND_HOST },
-  };
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', () => {
+    const body = Buffer.concat(chunks);
 
-  const proxyReq = https.request(options, (proxyRes) => {
-    res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes.pipe(res, { end: true });
+    const headers = { ...req.headers, host: BACKEND_HOST };
+    delete headers['content-encoding'];
+    if (body.length > 0) headers['content-length'] = body.length;
+
+    const options = {
+      hostname: BACKEND_HOST,
+      port: 443,
+      path: req.url,
+      method: req.method,
+      headers,
+    };
+
+    const proxyReq = https.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (err) => {
+      console.error('Proxy error:', err.message);
+      if (!res.headersSent) res.status(502).json({ error: 'Backend indisponível' });
+    });
+
+    if (body.length > 0) proxyReq.write(body);
+    proxyReq.end();
   });
-
-  proxyReq.on('error', (err) => {
-    console.error('Proxy error:', err.message);
-    if (!res.headersSent) res.status(502).json({ error: 'Backend indisponível' });
-  });
-
-  req.pipe(proxyReq, { end: true });
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));
