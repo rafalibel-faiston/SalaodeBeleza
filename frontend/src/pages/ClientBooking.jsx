@@ -137,31 +137,79 @@ export default function ClientBooking() {
   const storyTY  = useTransform(sp, [0, 0.55], ['90px', '0px']);
   const storyOp  = useTransform(sp, [0, 0.38], [0, 1]);
 
-  // ── Tela: aguardando confirmação ─────────────────────────────
+  // ── Tela: solicitação enviada (aguarda confirmação via WhatsApp) ──
   if (pendingId && !confirmedData && !rejected) {
+    const serviceName = services.find(s => String(s.id) === String(formData.service_id))?.name;
+    const dateFormatted = formData.scheduled_date && formData.scheduled_time
+      ? new Date(`${formData.scheduled_date}T${formData.scheduled_time}:00`)
+          .toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }) +
+        ' às ' + formData.scheduled_time.replace(':', 'h')
+      : '';
+    const wppUrl = `https://wa.me/5511993627584?text=${encodeURIComponent(`Oi Giovanna! ✨ Acabei de solicitar um agendamento pelo site e quero confirmar meu horário!`)}`;
+
     return (
-      <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
-        initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
-        <motion.div style={{ fontSize:'3rem', marginBottom:'16px' }}
-          animate={{ rotate:[0,10,-10,0] }} transition={{ duration:2, repeat:Infinity, ease:'easeInOut' }}>
-          ⏳
+      <motion.div className="container pix-container" style={{ marginTop: '50px', marginBottom: '50px' }}
+        initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+
+        {/* Ícone WhatsApp animado */}
+        <motion.div
+          style={{ fontSize: '3.5rem', marginBottom: '16px' }}
+          animate={{ scale: [1, 1.08, 1] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}>
+          💬
         </motion.div>
-        <h2 className="title">Aguardando <span>Confirmação</span></h2>
-        <p style={{ color:'var(--muted)', marginBottom:'28px', lineHeight:1.7 }}>
-          Solicitação enviada! A Giovanna vai confirmar em instantes.<br />
-          <small style={{ fontSize:'0.8rem' }}>Esta página atualiza automaticamente.</small>
+
+        <h2 className="title">Pedido <span>Enviado!</span> ✨</h2>
+        <p style={{ color: 'var(--muted)', marginBottom: '28px', lineHeight: 1.7 }}>
+          A Giovanna vai confirmar seu horário pelo <strong style={{ color: '#25D366' }}>WhatsApp</strong> em instantes.<br />
+          <small style={{ fontSize: '0.82rem' }}>Fique de olho nas suas mensagens! 📱</small>
         </p>
-        <div style={{ background:'var(--pink-light)', borderRadius:'16px', padding:'20px 24px', marginBottom:'28px', textAlign:'left', border:'1px solid var(--pink-mid)' }}>
-          <p style={{ color:'var(--muted)', fontSize:'0.9rem', lineHeight:1.8 }}>
-            💅 <strong>{services.find(s => String(s.id) === String(formData.service_id))?.name}</strong><br />
-            📅 {new Date(`${formData.scheduled_date}T${formData.scheduled_time}:00`).toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' })} às {formData.scheduled_time.replace(':','h')}<br />
+
+        {/* Card do agendamento */}
+        <div style={{ background: 'var(--pink-light)', borderRadius: '16px', padding: '20px 24px', marginBottom: '24px', textAlign: 'left', border: '1px solid var(--pink-mid)', lineHeight: 1.9 }}>
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+            {serviceName && <><strong style={{ color: 'var(--text)' }}>💅 {serviceName}</strong><br /></>}
+            {dateFormatted && <>📅 {dateFormatted}<br /></>}
             📍 Rua Ari Carneiro Fernandes, 155
           </p>
         </div>
-        <motion.div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', color:'var(--pink)', fontWeight:600, fontSize:'0.88rem' }}
-          animate={{ opacity:[1,0.3,1] }} transition={{ duration:1.4, repeat:Infinity }}>
-          ● Verificando status...
-        </motion.div>
+
+        {/* Card WhatsApp */}
+        <div style={{ background: 'rgba(37,211,102,0.08)', border: '1.5px solid rgba(37,211,102,0.3)', borderRadius: '16px', padding: '18px 22px', marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '14px', textAlign: 'left' }}>
+          <span style={{ fontSize: '2rem', flexShrink: 0 }}>📲</span>
+          <div>
+            <p style={{ margin: 0, fontWeight: '700', color: '#1a1a2e', fontSize: '0.92rem' }}>Acompanhe pelo WhatsApp</p>
+            <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+              A confirmação, lembrete e qualquer atualização chegam direto na sua conversa com a Giovanna.
+            </p>
+          </div>
+        </div>
+
+        {/* Botão WhatsApp */}
+        <motion.a
+          href={wppUrl}
+          target="_blank"
+          rel="noreferrer"
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '10px',
+            background: 'linear-gradient(135deg, #25D366, #128C7E)',
+            color: '#fff', textDecoration: 'none',
+            padding: '14px 28px', borderRadius: '14px',
+            fontWeight: '700', fontSize: '1rem',
+            boxShadow: '0 6px 20px rgba(37,211,102,0.4)',
+            marginBottom: '14px',
+          }}>
+          <span>💬</span> Abrir WhatsApp
+        </motion.a>
+
+        <br />
+        <button
+          style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '0.82rem', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline' }}
+          onClick={() => { setPendingId(null); setRejected(false); setFormData({ client_name: '', client_phone: '', service_id: '', scheduled_date: '', scheduled_time: '' }); }}>
+          Fazer um novo agendamento
+        </button>
       </motion.div>
     );
   }

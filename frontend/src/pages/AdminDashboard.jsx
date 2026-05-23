@@ -331,10 +331,11 @@ function AgendaTab({ appointments, onRefresh }) {
   const confirmados = appointments.filter(a => ['confirmed', 'scheduled', 'completed'].includes(a.status));
 
   const confirmar = async (apt) => {
-    if (!window.confirm(`Confirmar agendamento de ${apt.client?.name}?`)) return;
+    if (!window.confirm(`Confirmar agendamento de ${apt.client?.name}? O WhatsApp de confirmação será aberto automaticamente.`)) return;
     try {
       await api.patch(`/appointments/${apt.id}/status`, { status: 'confirmed' });
       onRefresh();
+      abrirWpp(apt.client?.phone, msgConfirmacao(apt));
     } catch { alert('Erro ao confirmar.'); }
   };
 
