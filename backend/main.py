@@ -10,6 +10,7 @@ import mercadopago
 import hashlib
 import hmac
 import os
+import concurrent.futures
 
 import models
 import schemas
@@ -263,7 +264,9 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
             },
         }
         try:
-            mp_response = sdk.payment().create(payment_data)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(sdk.payment().create, payment_data)
+                mp_response = future.result(timeout=15)
             if mp_response["status"] == 201:
                 mp_payment_id = str(mp_response["response"]["id"])
                 pix_info = mp_response["response"]["point_of_interaction"]["transaction_data"]
