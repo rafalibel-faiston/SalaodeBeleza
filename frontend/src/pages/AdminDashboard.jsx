@@ -61,33 +61,38 @@ for (let h = 8; h < 20; h++) {
 const C = {
   primary: '#d8438b',
   primaryDark: '#a0195e',
-  text: '#1a1a2e',
-  textMuted: '#64748b',
-  bg: 'linear-gradient(150deg, #fce8f0 0%, #f8f7fc 60%, #fdf4f7 100%)',
+  text: '#0f0614',
+  textMuted: '#6b7280',
+  bg: 'linear-gradient(145deg, #fce4ef 0%, #f5e8fb 35%, #ede8fb 65%, #e8f0fd 100%)',
   white: '#ffffff',
-  border: '#e2e8f0',
+  glass: 'rgba(255,255,255,0.48)',
+  glassBorder: 'rgba(255,255,255,0.55)',
+  border: '#e9ddf2',
   success: '#10b981',
   warning: '#f59e0b',
-  danger: '#ef4444',
-  dangerBg: '#fee2e2',
-  warnBg: '#fef3c7',
-  successBg: '#d1fae5',
+  danger: '#dc2626',
+  dangerBg: '#fef2f2',
+  warnBg: '#fefce8',
+  successBg: '#ecfdf5',
   teal: '#0d9488',
   tealBg: '#f0fdfa',
+  fontDisplay: "'Syne', sans-serif",
+  fontSans: "'Outfit', sans-serif",
+  fontMono: "'JetBrains Mono', monospace",
+  fontSerif: "'Fraunces', serif",
 };
 
-const gradientBtn = `linear-gradient(135deg, ${C.primaryDark} 0%, ${C.primary} 100%)`;
+const gradientBtn = `linear-gradient(135deg, ${C.primaryDark} 0%, ${C.primary} 60%, #e055a0 100%)`;
+const gradientBtnHover = `linear-gradient(135deg, #8a1250 0%, ${C.primaryDark} 60%, ${C.primary} 100%)`;
+const glassBox = { background: C.glass, backdropFilter: 'blur(28px) saturate(140%)', WebkitBackdropFilter: 'blur(28px) saturate(140%)', border: `1px solid ${C.glassBorder}` };
 
 // ─── UI reutilizável ─────────────────────────────────────────────────────────
 
-const Card = ({ children, style }) => (
-  <div style={{
-    background: C.white,
-    borderRadius: '16px',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-    padding: '20px',
-    ...style,
-  }}>
+const Card = ({ children, style, glow = false }) => (
+  <div
+    className={glow ? 'glow-card' : 'glass-panel'}
+    style={{ padding: '20px', fontFamily: C.fontSans, ...style }}
+  >
     {children}
   </div>
 );
@@ -112,14 +117,16 @@ const StatCard = ({ label, value, sub, color }) => (
 );
 
 const BtnWpp = ({ label, color, onClick }) => (
-  <button onClick={onClick} style={{
+  <button onClick={onClick} className="btn-tactile animate-float" style={{
     flex: 1, minWidth: '140px', padding: '9px 12px',
     background: color, color: '#fff', border: 'none',
-    borderRadius: '10px', fontWeight: 'bold', fontSize: '0.82rem', cursor: 'pointer',
-    transition: 'opacity 0.2s',
+    borderRadius: '12px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
+    fontFamily: C.fontSans, letterSpacing: '0.02em',
+    boxShadow: `0 4px 14px ${color}55`,
+    transition: 'opacity 0.2s, transform 0.12s',
   }}
-    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+    onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.boxShadow = `0 6px 20px ${color}77`; }}
+    onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.boxShadow = `0 4px 14px ${color}55`; }}
   >
     {label}
   </button>
@@ -139,16 +146,20 @@ const PrimaryBtn = ({ children, onClick, disabled, style = {} }) => (
   <button
     onClick={onClick}
     disabled={disabled}
+    className="btn-tactile"
     style={{
       padding: '10px 22px',
-      background: disabled ? '#ccc' : gradientBtn,
-      color: '#fff', border: 'none', borderRadius: '10px',
-      fontWeight: '700', fontSize: '0.9rem', cursor: disabled ? 'not-allowed' : 'pointer',
-      transition: 'opacity 0.2s, transform 0.15s',
+      background: disabled ? '#d1d5db' : gradientBtn,
+      color: '#fff', border: 'none', borderRadius: '12px',
+      fontWeight: '700', fontSize: '0.88rem', cursor: disabled ? 'not-allowed' : 'pointer',
+      fontFamily: C.fontSans,
+      letterSpacing: '0.02em',
+      boxShadow: disabled ? 'none' : '0 4px 14px rgba(160,25,94,0.35)',
+      transition: 'opacity 0.2s, transform 0.12s, box-shadow 0.2s',
       ...style,
     }}
-    onMouseEnter={e => { if (!disabled) e.currentTarget.style.opacity = '0.9'; }}
-    onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+    onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = gradientBtnHover; e.currentTarget.style.boxShadow = '0 6px 20px rgba(160,25,94,0.45)'; } }}
+    onMouseLeave={e => { if (!disabled) { e.currentTarget.style.background = gradientBtn; e.currentTarget.style.boxShadow = '0 4px 14px rgba(160,25,94,0.35)'; } }}
   >
     {children}
   </button>
@@ -212,20 +223,20 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
   };
 
   return (
-    <Card style={{ padding: '16px', minWidth: '290px' }}>
+    <Card glow style={{ padding: '18px', minWidth: '290px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', color: C.textMuted, padding: '4px 8px', borderRadius: '8px', transition: 'background 0.2s', lineHeight: 1 }}
-          onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        <button onClick={prevMonth} className="btn-tactile" style={{ background: 'rgba(216,67,139,0.08)', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: C.primary, padding: '6px 10px', borderRadius: '10px', transition: 'all 0.2s', lineHeight: 1 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(216,67,139,0.16)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(216,67,139,0.08)'}
         >‹</button>
-        <span style={{ fontWeight: '700', fontSize: '0.95rem', color: C.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ fontWeight: '800', fontSize: '0.95rem', fontFamily: C.fontDisplay, color: C.text, display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.02em' }}>
           <span style={{ fontSize: '0.9rem' }}>📅</span>
           {MESES[viewMonth]} {viewYear}
         </span>
-        <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', color: C.textMuted, padding: '4px 8px', borderRadius: '8px', transition: 'background 0.2s', lineHeight: 1 }}
-          onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        <button onClick={nextMonth} className="btn-tactile" style={{ background: 'rgba(216,67,139,0.08)', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: C.primary, padding: '6px 10px', borderRadius: '10px', transition: 'all 0.2s', lineHeight: 1 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(216,67,139,0.16)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(216,67,139,0.08)'}
         >›</button>
       </div>
 
@@ -251,8 +262,8 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
           let color = C.text;
           let border = 'none';
 
-          if (selected) { bg = C.primary; color = '#fff'; }
-          else if (today_) { bg = '#fdf1f6'; color = C.primaryDark; border = `1.5px solid ${C.primary}`; }
+          if (selected) { bg = gradientBtn; color = '#fff'; border = 'none'; }
+          else if (today_) { bg = 'rgba(216,67,139,0.1)'; color = C.primaryDark; border = `1.5px solid ${C.primary}`; }
 
           const dotColor = hasPending ? C.warning : hasScheduled ? C.primary : null;
 
@@ -260,21 +271,24 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
             <button
               key={d}
               onClick={() => handleDayClick(d)}
+              className="btn-tactile"
               style={{
                 position: 'relative', background: bg, color, border,
-                borderRadius: '8px', padding: '6px 2px',
-                fontSize: '0.82rem', fontWeight: today_ || selected ? '700' : '400',
+                borderRadius: '9px', padding: '6px 2px',
+                fontSize: '0.82rem', fontWeight: today_ || selected ? '700' : '500',
                 cursor: 'pointer', textAlign: 'center', lineHeight: 1.2,
-                transition: 'background 0.15s, color 0.15s',
+                fontFamily: C.fontSans,
+                transition: 'all 0.15s',
+                boxShadow: selected ? '0 3px 10px rgba(160,25,94,0.35)' : 'none',
               }}
-              onMouseEnter={e => { if (!selected) { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = C.text; } }}
+              onMouseEnter={e => { if (!selected) { e.currentTarget.style.background = 'rgba(216,67,139,0.08)'; e.currentTarget.style.color = C.primaryDark; } }}
               onMouseLeave={e => { if (!selected) { e.currentTarget.style.background = bg; e.currentTarget.style.color = color; } }}
             >
               {d}
               {dotColor && (
                 <span style={{
                   display: 'block', width: '5px', height: '5px',
-                  borderRadius: '50%', background: selected ? '#fff' : dotColor,
+                  borderRadius: '50%', background: selected ? 'rgba(255,255,255,0.8)' : dotColor,
                   margin: '2px auto 0',
                 }} />
               )}
@@ -386,48 +400,57 @@ function AgendaTab({ appointments, onRefresh }) {
     const t = fmtHoraPartes(apt.scheduled_at);
     return (
       <div key={apt.id} style={{
-        display: 'flex', gap: '12px', alignItems: 'flex-start',
-        background: apt.status === 'no_show' ? '#fff5f5' : C.white,
-        borderRadius: '14px',
-        border: `1px solid ${apt.status === 'no_show' ? '#fecaca' : C.border}`,
-        padding: '14px',
+        display: 'flex', gap: '14px', alignItems: 'flex-start',
+        ...glassBox,
+        borderRadius: '16px',
+        border: `1px solid ${apt.status === 'no_show' ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.55)'}`,
+        padding: '16px',
         marginBottom: '10px',
-      }}>
+        fontFamily: C.fontSans,
+        transition: 'box-shadow 0.2s, transform 0.15s',
+      }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(216,67,139,0.14)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}
+      >
+        {/* Time bubble */}
         <div style={{
           flexShrink: 0,
-          background: apt.status === 'no_show' ? C.danger : C.teal,
+          background: apt.status === 'no_show'
+            ? 'linear-gradient(135deg, #dc2626, #b91c1c)'
+            : 'linear-gradient(135deg, #0d9488, #059669)',
           color: '#fff',
-          borderRadius: '12px',
-          padding: '8px 10px',
+          borderRadius: '14px',
+          padding: '10px 10px',
           textAlign: 'center',
-          minWidth: '54px',
+          minWidth: '56px',
           fontWeight: '800',
-          lineHeight: 1.2,
+          lineHeight: 1.15,
+          boxShadow: apt.status === 'no_show' ? '0 4px 12px rgba(220,38,38,0.4)' : '0 4px 12px rgba(13,148,136,0.4)',
         }}>
-          <div style={{ fontSize: '1rem' }}>{t.h}</div>
-          <div style={{ fontSize: '0.82rem' }}>{t.m}</div>
+          <div style={{ fontSize: '1rem', fontFamily: C.fontMono }}>{t.h}</div>
+          <div style={{ fontSize: '0.8rem', fontFamily: C.fontMono, opacity: 0.9 }}>{t.m}</div>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '2px' }}>
-            <span style={{ fontWeight: '700', color: C.text, fontSize: '0.95rem' }}>{apt.client?.name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
+            <span style={{ fontWeight: '700', color: C.text, fontSize: '0.95rem', fontFamily: C.fontSans }}>{apt.client?.name}</span>
             {apt.status === 'no_show' && <Badge label="Falta" color={C.danger} bg={C.dangerBg} />}
             {apt.client?.is_blocked && <Badge label="Bloqueada" color={C.danger} bg={C.dangerBg} />}
           </div>
           <p style={{ margin: 0, color: C.textMuted, fontSize: '0.83rem' }}>💅 {apt.service?.name}</p>
           {apt.client?.medical_restrictions && (
-            <p style={{ margin: '4px 0 0', color: '#b45309', fontSize: '0.8rem' }}>
+            <p style={{ margin: '5px 0 0', color: '#b45309', fontSize: '0.8rem', fontFamily: C.fontSerif, fontStyle: 'italic' }}>
               ⚠️ {apt.client.medical_restrictions}
             </p>
           )}
 
           {reagendando === apt.id && (
-            <div style={{ background: '#fdf1f6', borderRadius: '12px', padding: '12px', marginTop: '10px' }}>
-              <p style={{ fontWeight: '700', marginBottom: '10px', color: C.primary, fontSize: '0.88rem' }}>📅 Novo horário</p>
+            <div style={{ background: 'rgba(216,67,139,0.06)', backdropFilter: 'blur(12px)', borderRadius: '14px', padding: '14px', marginTop: '12px', border: '1px solid rgba(216,67,139,0.15)' }}>
+              <p style={{ fontWeight: '700', marginBottom: '10px', color: C.primary, fontSize: '0.88rem', fontFamily: C.fontDisplay }}>📅 Novo horário</p>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <input type="date" value={novaData} onChange={e => setNovaData(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]} style={{ flex: 1, ...inputStyle }} />
-                <select value={novaHora} onChange={e => setNovaHora(e.target.value)} style={{ flex: 1, ...selectStyle }}>
+                  min={new Date().toISOString().split('T')[0]} style={{ flex: 1, ...inputStyle, fontFamily: C.fontSans }} />
+                <select value={novaHora} onChange={e => setNovaHora(e.target.value)} style={{ flex: 1, ...selectStyle, fontFamily: C.fontSans }}>
                   <option value="">Horário...</option>
                   {timeSlots.map(ts => <option key={ts} value={ts}>{ts.replace(':', 'h')}</option>)}
                 </select>
@@ -436,8 +459,8 @@ function AgendaTab({ appointments, onRefresh }) {
                 <PrimaryBtn onClick={() => confirmarReagendamento(apt)} disabled={salvando} style={{ flex: 1 }}>
                   {salvando ? 'Salvando...' : '✅ Confirmar'}
                 </PrimaryBtn>
-                <button onClick={() => setReagendando(null)}
-                  style={{ padding: '9px 16px', background: '#eee', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>
+                <button onClick={() => setReagendando(null)} className="btn-tactile"
+                  style={{ padding: '9px 16px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', fontFamily: C.fontSans }}>
                   Cancelar
                 </button>
               </div>
@@ -445,14 +468,14 @@ function AgendaTab({ appointments, onRefresh }) {
           )}
 
           {apt.status !== 'no_show' && apt.status !== 'pending' && reagendando !== apt.id && (
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
               <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
               <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
-              <button onClick={() => { setReagendando(apt.id); setNovaData(''); setNovaHora(''); }}
-                style={{ flex: 1, minWidth: '90px', padding: '8px', background: C.warnBg, color: '#92400e', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}>
+              <button onClick={() => { setReagendando(apt.id); setNovaData(''); setNovaHora(''); }} className="btn-tactile"
+                style={{ flex: 1, minWidth: '90px', padding: '8px', background: 'rgba(245,158,11,0.12)', color: '#92400e', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '12px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', fontFamily: C.fontSans }}>
                 🔄 Remarcar
               </button>
-              <button onClick={() => registrarFalta(apt)}
+              <button onClick={() => registrarFalta(apt)} className="btn-tactile"
                 style={{ flex: 1, minWidth: '80px', padding: '8px', background: C.dangerBg, color: C.danger, border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}>
                 🚫 Falta
               </button>
@@ -469,16 +492,19 @@ function AgendaTab({ appointments, onRefresh }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
-          <span style={{ fontWeight: '800', color: C.text, fontSize: '0.92rem' }}>{fmt(apt.financial?.total_value)}</span>
+          <span style={{ fontWeight: '700', color: C.text, fontSize: '0.92rem', fontFamily: C.fontMono }}>{fmt(apt.financial?.total_value)}</span>
           {apt.status !== 'no_show' && apt.status !== 'pending' && (
             <button
               onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))}
               title="Enviar confirmação WhatsApp"
+              className="btn-tactile animate-float"
               style={{
-                width: '34px', height: '34px',
-                background: C.success, border: 'none', borderRadius: '8px',
-                color: '#fff', fontSize: '0.9rem', cursor: 'pointer',
+                width: '36px', height: '36px',
+                background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                border: 'none', borderRadius: '10px',
+                color: '#fff', fontSize: '1rem', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(37,211,102,0.4)',
               }}
             >
               💬
@@ -491,19 +517,25 @@ function AgendaTab({ appointments, onRefresh }) {
 
   const renderPendingCard = (apt) => (
     <div key={apt.id} style={{
-      background: C.white,
-      borderRadius: '14px',
-      border: `1px solid ${C.border}`,
-      padding: '16px',
-    }}>
+      ...glassBox,
+      borderRadius: '16px',
+      border: '1px solid rgba(255,255,255,0.55)',
+      padding: '18px',
+      fontFamily: C.fontSans,
+      transition: 'box-shadow 0.2s',
+    }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 8px 28px rgba(216,67,139,0.1)'}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = ''}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: '800', color: C.text, fontSize: '0.95rem' }}>{apt.client?.name}</span>
+          <span style={{ fontWeight: '800', color: C.text, fontSize: '0.95rem', fontFamily: C.fontSans }}>{apt.client?.name}</span>
           <span style={{
-            background: '#fef3c7', color: '#92400e',
-            borderRadius: '6px', padding: '2px 10px',
+            background: 'rgba(245,158,11,0.15)', color: '#92400e',
+            borderRadius: '8px', padding: '3px 10px',
             fontSize: '0.7rem', fontWeight: '800',
-            letterSpacing: '0.05em', textTransform: 'uppercase',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            border: '1px solid rgba(245,158,11,0.3)',
           }}>AGUARDANDO</span>
           {apt.client?.is_blocked && <Badge label="Bloqueada" color={C.danger} bg={C.dangerBg} />}
         </div>
@@ -513,58 +545,63 @@ function AgendaTab({ appointments, onRefresh }) {
         </div>
       </div>
 
-      <p style={{ margin: '0 0 8px', color: C.textMuted, fontSize: '0.82rem' }}>
+      <p style={{ margin: '0 0 10px', color: C.textMuted, fontSize: '0.82rem' }}>
         ⏰ {fmtDate(apt.scheduled_at)}
       </p>
 
       <div style={{
-        background: '#f8f9fa', borderRadius: '10px',
-        border: `1px solid ${C.border}`, padding: '10px 14px',
+        background: 'rgba(216,67,139,0.04)', borderRadius: '12px',
+        border: '1px solid rgba(216,67,139,0.12)', padding: '10px 14px',
         marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px',
       }}>
         <span style={{ fontSize: '1rem' }}>💅</span>
-        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: C.text }}>{apt.service?.name}</span>
+        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: C.text, fontFamily: C.fontSans }}>{apt.service?.name}</span>
       </div>
 
       {apt.client?.medical_restrictions && (
-        <div style={{ background: C.warnBg, color: '#856404', padding: '6px 10px', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '10px' }}>
+        <div style={{ background: 'rgba(245,158,11,0.1)', color: '#856404', padding: '8px 12px', borderRadius: '10px', fontSize: '0.82rem', marginBottom: '12px', border: '1px solid rgba(245,158,11,0.2)', fontFamily: C.fontSerif, fontStyle: 'italic' }}>
           ⚠️ {apt.client.medical_restrictions}
         </div>
       )}
 
       <div style={{ display: 'flex', gap: '8px' }}>
-        <button onClick={() => confirmar(apt)}
+        <button onClick={() => confirmar(apt)} className="btn-tactile"
           style={{
-            flex: 1, padding: '10px', background: '#ecfdf5', color: '#065f46',
-            border: `1px solid #6ee7b7`, borderRadius: '10px',
-            fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', transition: 'background 0.15s',
+            flex: 1, padding: '11px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff',
+            border: 'none', borderRadius: '12px',
+            fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
+            fontFamily: C.fontSans, letterSpacing: '0.02em',
+            boxShadow: '0 4px 12px rgba(16,185,129,0.35)',
+            transition: 'all 0.15s',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = '#d1fae5'}
-          onMouseLeave={e => e.currentTarget.style.background = '#ecfdf5'}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 18px rgba(16,185,129,0.5)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.35)'; }}
         >
           ✓ Confirmar
         </button>
-        <button onClick={() => recusar(apt)}
+        <button onClick={() => recusar(apt)} className="btn-tactile"
           style={{
-            flex: 1, padding: '10px', background: C.white, color: C.danger,
-            border: `1px solid #fca5a5`, borderRadius: '10px',
-            fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', transition: 'background 0.15s',
+            flex: 1, padding: '11px', background: 'rgba(220,38,38,0.06)', color: C.danger,
+            border: '1px solid rgba(220,38,38,0.25)', borderRadius: '12px',
+            fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
+            fontFamily: C.fontSans, letterSpacing: '0.02em', transition: 'all 0.15s',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = '#fff5f5'}
-          onMouseLeave={e => e.currentTarget.style.background = C.white}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.12)'; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.4)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.06)'; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.25)'; }}
         >
           ✗ Recusar
         </button>
         <button
           onClick={() => cancelar(apt, 'admin')}
           title="Remover agendamento"
+          className="btn-tactile"
           style={{
-            padding: '10px 14px', background: '#f8fafc', color: '#94a3b8',
-            border: `1px solid ${C.border}`, borderRadius: '10px',
+            padding: '11px 14px', background: 'rgba(0,0,0,0.04)', color: '#94a3b8',
+            border: '1px solid rgba(0,0,0,0.08)', borderRadius: '12px',
             cursor: 'pointer', fontSize: '1rem', transition: 'all 0.15s',
           }}
           onMouseEnter={e => { e.currentTarget.style.background = C.dangerBg; e.currentTarget.style.color = C.danger; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#94a3b8'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#94a3b8'; }}
         >
           🗑
         </button>
@@ -575,18 +612,23 @@ function AgendaTab({ appointments, onRefresh }) {
   const renderListCard = (apt) => (
     <div key={apt.id} style={{
       display: 'flex', gap: '12px', alignItems: 'center',
-      background: C.white, borderRadius: '14px',
-      border: `1px solid ${C.border}`, padding: '14px',
+      ...glassBox, borderRadius: '14px', padding: '14px',
+      fontFamily: C.fontSans,
     }}>
       <div style={{
         flexShrink: 0,
-        background: apt.status === 'no_show' ? C.dangerBg : apt.status === 'pending' ? C.warnBg : C.successBg,
+        background: apt.status === 'no_show'
+          ? 'linear-gradient(135deg, rgba(220,38,38,0.15), rgba(220,38,38,0.08))'
+          : apt.status === 'pending'
+          ? 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.08))'
+          : 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))',
         color: apt.status === 'no_show' ? C.danger : apt.status === 'pending' ? '#92400e' : '#065f46',
         borderRadius: '12px', padding: '8px 10px', textAlign: 'center',
-        minWidth: '54px', fontWeight: '800', lineHeight: 1.2,
+        minWidth: '54px', fontWeight: '700', lineHeight: 1.2,
+        border: `1px solid ${apt.status === 'no_show' ? 'rgba(220,38,38,0.2)' : apt.status === 'pending' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}`,
       }}>
-        <div style={{ fontSize: '0.72rem' }}>{fmtData(apt.scheduled_at)}</div>
-        <div style={{ fontSize: '0.85rem' }}>{fmtHora(apt.scheduled_at)}</div>
+        <div style={{ fontSize: '0.72rem', fontFamily: C.fontMono }}>{fmtData(apt.scheduled_at)}</div>
+        <div style={{ fontSize: '0.85rem', fontFamily: C.fontMono }}>{fmtHora(apt.scheduled_at)}</div>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -600,29 +642,29 @@ function AgendaTab({ appointments, onRefresh }) {
         <p style={{ margin: '2px 0 0', color: C.textMuted, fontSize: '0.82rem' }}>💅 {apt.service?.name}</p>
       </div>
       <div style={{ flexShrink: 0, fontWeight: '700', color: C.text, fontSize: '0.9rem' }}>
-        {fmt(apt.financial?.total_value)}
+        <span style={{ fontWeight: '700', color: C.text, fontSize: '0.9rem', fontFamily: C.fontMono }}>{fmt(apt.financial?.total_value)}</span>
       </div>
     </div>
   );
 
   const filters = [
-    { id: 'pendentes', label: 'Pendentes de Aprovação', count: pendentes.length, color: C.warning, activeBg: '#fffbf0' },
-    { id: 'historico', label: 'Histórico Completo', count: appointments.length, color: C.danger, activeBg: C.dangerBg },
-    { id: 'confirmados', label: 'Confirmados Geral', count: confirmados.length, color: C.success, activeBg: C.successBg },
+    { id: 'pendentes', label: 'Pendentes de Aprovação', count: pendentes.length, color: C.warning, activeBg: 'rgba(245,158,11,0.08)' },
+    { id: 'historico', label: 'Histórico Completo', count: appointments.length, color: C.danger, activeBg: 'rgba(220,38,38,0.06)' },
+    { id: 'confirmados', label: 'Confirmados Geral', count: confirmados.length, color: C.success, activeBg: 'rgba(16,185,129,0.08)' },
   ];
 
   const activeFilterInfo = filters.find(f => f.id === activeFilter);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px', alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '22px', alignItems: 'start', fontFamily: C.fontSans }}>
       {/* Coluna esquerda: calendário + filtros */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <MonthCalendar appointments={appointments} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
 
-        <Card style={{ padding: '16px' }}>
+        <Card style={{ padding: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
             <span style={{ fontSize: '1rem' }}>🔽</span>
-            <h3 style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '0.9rem' }}>Filtros de Solicitações</h3>
+            <h3 style={{ margin: 0, fontWeight: '800', color: C.text, fontSize: '0.88rem', fontFamily: C.fontDisplay, letterSpacing: '0.03em', textTransform: 'uppercase' }}>Filtros de Solicitações</h3>
           </div>
           {filters.map(f => (
             <button
@@ -631,16 +673,19 @@ function AgendaTab({ appointments, onRefresh }) {
               style={{
                 width: '100%', display: 'flex', alignItems: 'center',
                 justifyContent: 'space-between', padding: '12px 14px', marginBottom: '8px',
-                background: activeFilter === f.id ? f.activeBg : C.white,
-                border: `1.5px solid ${activeFilter === f.id ? f.color : C.border}`,
-                borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
+                background: activeFilter === f.id ? f.activeBg : 'rgba(255,255,255,0.3)',
+                border: `1.5px solid ${activeFilter === f.id ? f.color : 'rgba(255,255,255,0.4)'}`,
+                borderRadius: '14px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
+                fontFamily: C.fontSans,
               }}
+              onMouseEnter={e => { if (activeFilter !== f.id) e.currentTarget.style.background = 'rgba(255,255,255,0.55)'; }}
+              onMouseLeave={e => { if (activeFilter !== f.id) e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: f.color, flexShrink: 0, display: 'inline-block' }} />
-                <span style={{ fontSize: '0.85rem', fontWeight: activeFilter === f.id ? '700' : '500', color: C.text }}>{f.label}</span>
+                <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: f.color, flexShrink: 0, display: 'inline-block', boxShadow: `0 0 6px ${f.color}88` }} />
+                <span style={{ fontSize: '0.84rem', fontWeight: activeFilter === f.id ? '700' : '500', color: C.text }}>{f.label}</span>
               </div>
-              <span style={{ background: f.color, color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '0.75rem', fontWeight: '800', flexShrink: 0 }}>
+              <span style={{ background: f.color, color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '0.75rem', fontWeight: '800', flexShrink: 0, boxShadow: `0 2px 8px ${f.color}55` }}>
                 {f.count}
               </span>
             </button>
@@ -651,33 +696,34 @@ function AgendaTab({ appointments, onRefresh }) {
       {/* Coluna direita: agenda do dia + lista filtrada */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Agenda do Dia Selecionado */}
-        <Card style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+        <Card glow style={{ padding: '22px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '8px' }}>
             <div>
               <h3 style={{
                 margin: 0,
-                fontFamily: "'Playfair Display', Georgia, serif",
-                background: `linear-gradient(135deg, ${C.primaryDark} 0%, ${C.primary} 100%)`,
+                fontFamily: C.fontDisplay,
+                background: `linear-gradient(135deg, ${C.primaryDark} 0%, ${C.primary} 60%, #e055a0 100%)`,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                fontSize: '1.1rem',
-                fontWeight: '700',
+                fontSize: '1.15rem',
+                fontWeight: '800',
+                letterSpacing: '0.01em',
               }}>
                 Agenda do Dia Selecionado
               </h3>
               {selectedDate && (
-                <p style={{ margin: '3px 0 0', color: C.textMuted, fontSize: '0.83rem' }}>
+                <p style={{ margin: '4px 0 0', color: C.textMuted, fontSize: '0.82rem', fontFamily: C.fontSans }}>
                   Visualizando dia {fmtSelectedDate}
                 </p>
               )}
             </div>
             {confirmedDayApts.length > 0 && (
               <span style={{
-                background: '#ecfdf5', color: '#065f46',
-                border: '1px solid #6ee7b7', borderRadius: '20px',
-                padding: '4px 14px', fontSize: '0.78rem', fontWeight: '700',
-                whiteSpace: 'nowrap', flexShrink: 0,
+                background: 'rgba(16,185,129,0.12)', color: '#065f46',
+                border: '1px solid rgba(16,185,129,0.3)', borderRadius: '20px',
+                padding: '5px 16px', fontSize: '0.78rem', fontWeight: '700',
+                whiteSpace: 'nowrap', flexShrink: 0, fontFamily: C.fontSans,
               }}>
                 {confirmedDayApts.length} atendimento{confirmedDayApts.length !== 1 ? 's' : ''} confirmado{confirmedDayApts.length !== 1 ? 's' : ''}
               </span>
@@ -686,13 +732,13 @@ function AgendaTab({ appointments, onRefresh }) {
 
           {!selectedDate ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: C.textMuted }}>
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📅</div>
-              <p style={{ fontSize: '0.9rem', margin: 0 }}>Selecione um dia no calendário</p>
+              <div style={{ fontSize: '2.2rem', marginBottom: '10px' }}>📅</div>
+              <p style={{ fontSize: '0.9rem', margin: 0, fontFamily: C.fontSans }}>Selecione um dia no calendário</p>
             </div>
           ) : dayApts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '30px 0', color: C.textMuted }}>
-              <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🌸</div>
-              <p style={{ margin: 0, fontSize: '0.9rem' }}>Nenhum agendamento neste dia.</p>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🌸</div>
+              <p style={{ margin: 0, fontSize: '0.9rem', fontFamily: C.fontSans }}>Nenhum agendamento neste dia.</p>
             </div>
           ) : (
             <div style={{ maxHeight: '440px', overflowY: 'auto', paddingRight: '4px' }}>
@@ -702,21 +748,21 @@ function AgendaTab({ appointments, onRefresh }) {
         </Card>
 
         {/* Lista filtrada */}
-        <Card style={{ padding: '20px' }}>
+        <Card style={{ padding: '22px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '1.2rem' }}>
                   {activeFilter === 'pendentes' ? '🔔' : activeFilter === 'confirmados' ? '✅' : '📋'}
                 </span>
-                <h3 style={{ margin: 0, fontWeight: '800', color: C.text, fontSize: '1rem' }}>
+                <h3 style={{ margin: 0, fontWeight: '800', color: C.text, fontSize: '1rem', fontFamily: C.fontDisplay, letterSpacing: '0.02em' }}>
                   {activeFilter === 'pendentes' ? 'Pendentes de Confirmação'
                     : activeFilter === 'confirmados' ? 'Confirmados'
                     : 'Histórico Completo'}
                 </h3>
               </div>
               {activeFilter === 'pendentes' && (
-                <p style={{ margin: '4px 0 0 2.2rem', color: C.textMuted, fontSize: '0.8rem' }}>
+                <p style={{ margin: '4px 0 0 2.2rem', color: C.textMuted, fontSize: '0.8rem', fontFamily: C.fontSans }}>
                   Novas solicitações que necessitam de sua resposta de fluxo
                 </p>
               )}
@@ -725,7 +771,9 @@ function AgendaTab({ appointments, onRefresh }) {
               <span style={{
                 background: activeFilterInfo?.color || C.primary,
                 color: '#fff', borderRadius: '20px',
-                padding: '4px 12px', fontSize: '0.78rem', fontWeight: '800', flexShrink: 0,
+                padding: '4px 14px', fontSize: '0.78rem', fontWeight: '800', flexShrink: 0,
+                boxShadow: `0 3px 10px ${(activeFilterInfo?.color || C.primary)}55`,
+                fontFamily: C.fontMono,
               }}>
                 {filteredList.length}
               </span>
@@ -1561,17 +1609,19 @@ export default function AdminDashboard() {
   const currentDate = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: C.fontSans }}>
       {/* Header */}
       <div style={{
-        background: C.white,
-        borderBottom: `1px solid ${C.border}`,
+        background: 'rgba(255,255,255,0.72)',
+        backdropFilter: 'blur(24px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+        borderBottom: '1px solid rgba(216,67,139,0.12)',
         padding: '0 28px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         height: '72px',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        boxShadow: '0 2px 20px rgba(160,25,94,0.08)',
         position: 'sticky',
         top: 0,
         zIndex: 100,
@@ -1579,22 +1629,22 @@ export default function AdminDashboard() {
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
-            width: '44px', height: '44px',
+            width: '46px', height: '46px',
             background: gradientBtn,
-            borderRadius: '12px',
+            borderRadius: '14px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '1.4rem',
-            boxShadow: '0 4px 14px rgba(160,25,94,0.35)',
+            boxShadow: '0 6px 18px rgba(160,25,94,0.4)',
           }}>
             ✨
           </div>
           <div>
-            <p style={{ margin: 0, fontWeight: '800', fontSize: '1.05rem', lineHeight: 1.15 }}>
-              <span style={{ color: C.text }}>Giovanna</span>{' '}
-              <span style={{ color: C.primary, fontStyle: 'italic' }}>Beauty</span>
+            <p style={{ margin: 0, lineHeight: 1.15, fontFamily: C.fontDisplay }}>
+              <span style={{ fontWeight: '900', fontSize: '1.1rem', color: C.text }}>Giovanna</span>{' '}
+              <span style={{ fontWeight: '900', fontSize: '1.1rem', color: C.primary, fontStyle: 'italic' }}>Beauty</span>
             </p>
-            <p style={{ margin: 0, fontSize: '0.62rem', color: C.textMuted, fontWeight: '500', letterSpacing: '0.07em' }}>
-              + LASH &amp; BROW · HIGH AESTHETIC STUDIO +
+            <p style={{ margin: 0, fontSize: '0.6rem', color: C.textMuted, fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: C.fontSans }}>
+              + Lash &amp; Brow · High Aesthetic Studio +
             </p>
           </div>
         </div>
@@ -1604,46 +1654,49 @@ export default function AdminDashboard() {
           <div style={{ textAlign: 'right' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end' }}>
               <span style={{ fontSize: '0.78rem' }}>🗓</span>
-              <span style={{ fontSize: '0.82rem', color: C.text, fontWeight: '500' }}>{currentDate}</span>
+              <span style={{ fontSize: '0.82rem', color: C.text, fontWeight: '500', fontFamily: C.fontSans }}>{currentDate}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end', marginTop: '2px' }}>
               <span style={{ fontSize: '0.78rem' }}>⏰</span>
-              <span style={{ fontSize: '0.82rem', color: C.textMuted, fontFamily: 'monospace', letterSpacing: '0.03em' }}>{currentTime}</span>
+              <span style={{ fontSize: '0.82rem', color: C.textMuted, fontFamily: C.fontMono, letterSpacing: '0.04em' }}>{currentTime}</span>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '38px', height: '38px',
+              width: '40px', height: '40px',
               background: gradientBtn,
               borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: '800', fontSize: '1rem', flexShrink: 0,
+              color: '#fff', fontWeight: '800', fontSize: '1.05rem', flexShrink: 0,
+              fontFamily: C.fontDisplay,
+              boxShadow: '0 4px 14px rgba(160,25,94,0.4)',
             }}>
               G
             </div>
             <div>
-              <p style={{ margin: 0, fontWeight: '700', fontSize: '0.85rem', color: C.text }}>Giovanna</p>
-              <p style={{ margin: 0, fontSize: '0.68rem', color: C.primary, fontWeight: '600', letterSpacing: '0.05em' }}>LASH EXPERT</p>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '0.88rem', color: C.text, fontFamily: C.fontDisplay }}>Giovanna</p>
+              <p style={{ margin: 0, fontSize: '0.66rem', color: C.primary, fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: C.fontSans }}>Lash Expert</p>
             </div>
           </div>
 
           <button
             onClick={logout}
             title="Sair"
+            className="btn-tactile"
             style={{
-              width: '36px', height: '36px',
-              background: '#f8f7fc',
-              color: C.textMuted,
-              border: `1px solid ${C.border}`,
-              borderRadius: '10px',
+              width: '38px', height: '38px',
+              background: 'rgba(216,67,139,0.07)',
+              color: C.primary,
+              border: '1px solid rgba(216,67,139,0.2)',
+              borderRadius: '12px',
               fontSize: '1rem',
               cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'all 0.2s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = C.dangerBg; e.currentTarget.style.color = C.danger; e.currentTarget.style.borderColor = '#fca5a5'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#f8f7fc'; e.currentTarget.style.color = C.textMuted; e.currentTarget.style.borderColor = C.border; }}
+            onMouseEnter={e => { e.currentTarget.style.background = C.dangerBg; e.currentTarget.style.color = C.danger; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(216,67,139,0.07)'; e.currentTarget.style.color = C.primary; e.currentTarget.style.borderColor = 'rgba(216,67,139,0.2)'; }}
           >
             →
           </button>
@@ -1652,12 +1705,14 @@ export default function AdminDashboard() {
 
       {/* Navigation tabs */}
       <div style={{
-        background: C.white,
-        borderBottom: `1px solid ${C.border}`,
+        background: 'rgba(255,255,255,0.65)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(216,67,139,0.1)',
         display: 'flex',
         overflowX: 'auto',
-        padding: '10px 16px',
-        gap: '6px',
+        padding: '10px 20px',
+        gap: '4px',
         scrollbarWidth: 'none',
       }}>
         {TABS.map(tab => {
@@ -1667,35 +1722,37 @@ export default function AdminDashboard() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              className="btn-tactile"
               style={{
                 padding: '8px 16px',
-                border: 'none',
-                background: active ? gradientBtn : 'transparent',
+                border: active ? 'none' : '1px solid rgba(216,67,139,0.12)',
+                background: active ? gradientBtn : 'rgba(255,255,255,0.4)',
                 color: active ? '#fff' : C.textMuted,
                 fontWeight: active ? '700' : '500',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                fontSize: '0.78rem',
-                letterSpacing: '0.04em',
+                fontSize: '0.75rem',
+                letterSpacing: '0.05em',
                 borderRadius: '20px',
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                position: 'relative',
-                boxShadow: active ? '0 3px 10px rgba(160,25,94,0.3)' : 'none',
+                fontFamily: C.fontSans,
+                boxShadow: active ? '0 4px 14px rgba(160,25,94,0.35)' : 'none',
               }}
-              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = C.text; } }}
-              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textMuted; } }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(216,67,139,0.08)'; e.currentTarget.style.color = C.primaryDark; e.currentTarget.style.borderColor = 'rgba(216,67,139,0.25)'; } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.4)'; e.currentTarget.style.color = C.textMuted; e.currentTarget.style.borderColor = 'rgba(216,67,139,0.12)'; } }}
             >
               <span>{tab.icon}</span>
               <span>{tab.label}</span>
               {hasBadge && (
                 <span style={{
-                  background: active ? 'rgba(255,255,255,0.3)' : C.warning,
+                  background: active ? 'rgba(255,255,255,0.28)' : C.warning,
                   color: '#fff',
                   borderRadius: '10px', padding: '1px 7px',
                   fontSize: '0.65rem', fontWeight: '800',
+                  fontFamily: C.fontMono,
                 }}>
                   {pendingCount}
                 </span>
@@ -1706,7 +1763,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '28px 16px' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '28px 20px' }}>
         {activeTab === 'agenda'     && <AgendaTab appointments={appointments} onRefresh={fetchAll} />}
         {activeTab === 'novo'       && <NovoAtendimentoTab services={services} onRefresh={fetchAll} />}
         {activeTab === 'clientes'   && <ClientesTab clients={clients} appointments={appointments} onRefresh={fetchAll} />}
