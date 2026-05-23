@@ -95,28 +95,46 @@ def _seed_services(db):
 @app.on_event("startup")
 def run_migrations():
     """Adiciona colunas novas ao banco sem perder dados existentes."""
-    novos_campos = [
-        "ALTER TABLE clients ADD COLUMN instagram TEXT",
-        "ALTER TABLE clients ADD COLUMN favorite_volume TEXT",
-        "ALTER TABLE clients ADD COLUMN sensitivity TEXT",
-        "ALTER TABLE clients ADD COLUMN maintenance_frequency INTEGER",
-        "ALTER TABLE clients ADD COLUMN no_show_count INTEGER DEFAULT 0",
-        "ALTER TABLE clients ADD COLUMN cancellation_count INTEGER DEFAULT 0",
-        "ALTER TABLE clients ADD COLUMN is_blocked INTEGER DEFAULT 0",
-        "ALTER TABLE services ADD COLUMN is_active INTEGER DEFAULT 1",
-        "ALTER TABLE financials ADD COLUMN refund_amount REAL",
-        "ALTER TABLE financials ADD COLUMN refund_reason TEXT",
-        "ALTER TABLE financials ADD COLUMN mp_payment_id TEXT",
-        "ALTER TABLE financials ADD COLUMN pix_qr_code_base64 TEXT",
-        "ALTER TABLE financials ADD COLUMN pix_copia_cola TEXT",
-    ]
-    with engine.connect() as conn:
-        for sql in novos_campos:
-            try:
-                conn.execute(sql_text(sql))
-                conn.commit()
-            except Exception:
-                pass  # Coluna já existe — OK
+    import sqlite3 as _sqlite3
+
+    db_path = os.getenv("DATABASE_URL", "sqlite:///./banco_salao.db").replace("sqlite:///", "")
+
+    # Usa conexão raw do SQLite para garantir que as colunas são criadas
+    raw = _sqlite3.connect(db_path)
+    try:
+        def _cols(table):
+            return {r[1] for r in raw.execute(f"PRAGMA table_info({table})")}
+
+        needed = {
+            "clients": [
+                ("instagram", "TEXT"),
+                ("favorite_volume", "TEXT"),
+                ("sensitivity", "TEXT"),
+                ("maintenance_frequency", "INTEGER"),
+                ("no_show_count", "INTEGER DEFAULT 0"),
+                ("cancellation_count", "INTEGER DEFAULT 0"),
+                ("is_blocked", "INTEGER DEFAULT 0"),
+            ],
+            "services": [
+                ("is_active", "INTEGER DEFAULT 1"),
+            ],
+            "financials": [
+                ("refund_amount", "REAL"),
+                ("refund_reason", "TEXT"),
+                ("mp_payment_id", "TEXT"),
+                ("pix_qr_code_base64", "TEXT"),
+                ("pix_copia_cola", "TEXT"),
+            ],
+        }
+
+        for table, columns in needed.items():
+            existing = _cols(table)
+            for col, col_type in columns:
+                if col not in existing:
+                    raw.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
+        raw.commit()
+    finally:
+        raw.close()
 
     # Auto-seed serviços se o banco estiver vazio
     db = SessionLocal()
