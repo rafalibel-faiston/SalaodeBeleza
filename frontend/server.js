@@ -44,11 +44,14 @@ app.use(async (req, res, next) => {
       body: body.length > 0 ? body : undefined,
     });
 
+    const buf = await fetchRes.arrayBuffer();
+    console.log(`[proxy] ${req.method} ${req.url} → ${fetchRes.status} (${buf.byteLength}b)`);
+    if (fetchRes.status >= 400) console.log('[proxy] body:', Buffer.from(buf).toString());
+
     res.status(fetchRes.status);
     fetchRes.headers.forEach((v, k) => {
-      if (!['content-encoding', 'transfer-encoding'].includes(k)) res.setHeader(k, v);
+      if (!['content-encoding', 'transfer-encoding', 'content-length'].includes(k)) res.setHeader(k, v);
     });
-    const buf = await fetchRes.arrayBuffer();
     res.send(Buffer.from(buf));
   } catch (err) {
     console.error('Proxy error:', err.message);
