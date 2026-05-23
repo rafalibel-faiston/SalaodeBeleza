@@ -57,7 +57,9 @@ const FALLBACK = 'https://images.unsplash.com/photo-1583241800698-e8ab01830a07?q
 export default function ClientBooking() {
   const [services, setServices]   = useState([]);
   const [formData, setFormData]   = useState({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' });
-  const [pixData, setPixData]     = useState(null);
+  const [pendingId, setPendingId] = useState(null);    // appointment_id aguardando confirmação
+  const [confirmedData, setConfirmedData] = useState(null); // dados após confirmação
+  const [rejected, setRejected]   = useState(false);
   const [loading, setLoading]     = useState(false);
   const [activeModal, setModal]   = useState(null);
   const formRef  = useRef(null);
@@ -73,6 +75,24 @@ export default function ClientBooking() {
     api.get('/services/').then(r => setServices(r.data)).catch(console.error);
   }, []);
 
+  // Polling: verifica status do agendamento pendente a cada 5s
+  useEffect(() => {
+    if (!pendingId || confirmedData || rejected) return;
+    const interval = setInterval(async () => {
+      try {
+        const r = await api.get(`/appointments/${pendingId}/status`);
+        if (r.data.status === 'confirmed') {
+          setConfirmedData(r.data);
+          clearInterval(interval);
+        } else if (r.data.status === 'rejected') {
+          setRejected(true);
+          clearInterval(interval);
+        }
+      } catch {}
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [pendingId, confirmedData, rejected]);
+
   const handleChange  = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
@@ -87,7 +107,7 @@ export default function ClientBooking() {
         client_name: formData.client_name, client_phone: formData.client_phone,
         service_id: parseInt(formData.service_id), scheduled_at: scheduledAt.toISOString()
       });
-      setPixData(r.data);
+      setPendingId(r.data.appointment_id);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       alert('Erro ao criar agendamento: ' + (err.response?.data?.detail || err.message));
@@ -117,41 +137,90 @@ export default function ClientBooking() {
   const storyTY  = useTransform(sp, [0, 0.55], ['90px', '0px']);
   const storyOp  = useTransform(sp, [0, 0.38], [0, 1]);
 
-  // ── Pix success screen ────────────────────────────────────
-  if (pixData) {
-    const svc         = services.find(s => String(s.id) === String(formData.service_id));
-    const bookedDate  = new Date(`${formData.scheduled_date}T${formData.scheduled_time}:00`);
-    const dateStr     = bookedDate.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' });
-    const timeStr     = formData.scheduled_time.replace(':','h');
-    const hasPix      = pixData.pix_qr_code_base64 && pixData.pix_copia_cola;
+  // ── Tela: aguardando confirmação ─────────────────────────────
+  if (pendingId && !confirmedData && !rejected) {
+    return (
+      <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
+        initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
+        <motion.div style={{ fontSize:'3rem', marginBottom:'16px' }}
+          animate={{ rotate:[0,10,-10,0] }} transition={{ duration:2, repeat:Infinity, ease:'easeInOut' }}>
+          ⏳
+        </motion.div>
+        <h2 className="title">Aguardando <span>Confirmação</span></h2>
+        <p style={{ color:'var(--muted)', marginBottom:'28px', lineHeight:1.7 }}>
+          Solicitação enviada! A Giovanna vai confirmar em instantes.<br />
+          <small style={{ fontSize:'0.8rem' }}>Esta página atualiza automaticamente.</small>
+        </p>
+        <div style={{ background:'var(--pink-light)', borderRadius:'16px', padding:'20px 24px', marginBottom:'28px', textAlign:'left', border:'1px solid var(--pink-mid)' }}>
+          <p style={{ color:'var(--muted)', fontSize:'0.9rem', lineHeight:1.8 }}>
+            💅 <strong>{services.find(s => String(s.id) === String(formData.service_id))?.name}</strong><br />
+            📅 {new Date(`${formData.scheduled_date}T${formData.scheduled_time}:00`).toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' })} às {formData.scheduled_time.replace(':','h')}<br />
+            📍 Rua Ari Carneiro Fernandes, 155
+          </p>
+        </div>
+        <motion.div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', color:'var(--pink)', fontWeight:600, fontSize:'0.88rem' }}
+          animate={{ opacity:[1,0.3,1] }} transition={{ duration:1.4, repeat:Infinity }}>
+          ● Verificando status...
+        </motion.div>
+      </motion.div>
+    );
+  }
+
+  // ── Tela: recusado ────────────────────────────────────────────
+  if (rejected) {
+    return (
+      <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
+        initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
+        <div style={{ fontSize:'3rem', marginBottom:'8px' }}>😔</div>
+        <h2 className="title">Horário <span style={{ color:'#dc2626' }}>Indisponível</span></h2>
+        <p style={{ color:'var(--muted)', marginBottom:'28px', lineHeight:1.7 }}>
+          A Giovanna não conseguiu confirmar este horário. Tente outra data ou entre em contato pelo WhatsApp.
+        </p>
+        <a href="https://wa.me/5511993627584?text=Oi%20Giovanna%2C%20tentei%20agendar%20pelo%20site%20mas%20o%20hor%C3%A1rio%20n%C3%A3o%20foi%20confirmado..."
+          target="_blank" rel="noreferrer" className="btn-pill btn-pill-primary"
+          style={{ display:'inline-flex', marginBottom:'12px' }}>
+          💬 Falar no WhatsApp
+        </a>
+        <br />
+        <button className="btn-pill btn-pill-ghost" style={{ marginTop:'8px' }}
+          onClick={() => { setPendingId(null); setRejected(false); setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' }); }}>
+          Tentar outra data
+        </button>
+      </motion.div>
+    );
+  }
+
+  // ── Tela: confirmado + Pix ────────────────────────────────────
+  if (confirmedData) {
+    const bookedDate = new Date(confirmedData.scheduled_at);
+    const dateStr    = bookedDate.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' });
+    const timeStr    = `${String(bookedDate.getHours()).padStart(2,'0')}h${String(bookedDate.getMinutes()).padStart(2,'0')}`;
+    const hasPix     = confirmedData.pix_qr_code_base64 && confirmedData.pix_copia_cola;
 
     return (
       <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
         initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
         <div style={{ fontSize:'3rem', marginBottom:'8px' }}>✅</div>
         <h2 className="title">Horário <span>Confirmado!</span></h2>
-        <p style={{ color:'var(--muted)', marginBottom:'28px' }}>Agendamento salvo, {pixData.client_name?.split(' ')[0]}!</p>
-
+        <p style={{ color:'var(--muted)', marginBottom:'28px' }}>Arrasou, {confirmedData.client_name?.split(' ')[0]}! 💅</p>
         <div style={{ background:'var(--pink-light)', borderRadius:'16px', padding:'20px 24px', marginBottom:'28px', textAlign:'left', lineHeight:'2', border:'1px solid var(--pink-mid)' }}>
-          <p>💅 <strong>{svc?.name || pixData.service_name}</strong></p>
+          <p>💅 <strong>{confirmedData.service_name}</strong></p>
           <p>📅 {dateStr} às {timeStr}</p>
           <p>📍 Rua Ari Carneiro Fernandes, 155</p>
-          <p>💰 Total: <strong>R$ {pixData.total_value?.toFixed(2).replace('.',',')}</strong>
-            {pixData.deposit_amount > 0 && ` · Sinal: R$ ${pixData.deposit_amount?.toFixed(2).replace('.',',')}`}</p>
+          <p>💰 Total: <strong>R$ {confirmedData.total_value?.toFixed(2).replace('.',',')}</strong>
+            {confirmedData.deposit_amount > 0 && ` · Sinal: R$ ${confirmedData.deposit_amount?.toFixed(2).replace('.',',')}`}</p>
         </div>
-
         {hasPix && (
           <div style={{ marginBottom:'20px' }}>
             <p style={{ fontWeight:'700', marginBottom:'12px' }}>Pague o sinal para garantir sua vaga:</p>
-            <img src={`data:image/jpeg;base64,${pixData.pix_qr_code_base64}`} alt="QR Code Pix" className="pix-qrcode" />
+            <img src={`data:image/jpeg;base64,${confirmedData.pix_qr_code_base64}`} alt="QR Code Pix" className="pix-qrcode" />
             <p style={{ marginBottom:'8px', fontWeight:'600', marginTop:'16px', fontSize:'0.9rem' }}>Pix Copia e Cola:</p>
-            <textarea readOnly value={pixData.pix_copia_cola} className="pix-textarea" />
-            <button className="btn-primary" onClick={() => navigator.clipboard.writeText(pixData.pix_copia_cola)}>Copiar Código Pix</button>
+            <textarea readOnly value={confirmedData.pix_copia_cola} className="pix-textarea" />
+            <button className="btn-primary" onClick={() => navigator.clipboard.writeText(confirmedData.pix_copia_cola)}>Copiar Código Pix</button>
           </div>
         )}
-
         <button className="btn-primary" style={{ background:'#555', marginTop:'10px' }}
-          onClick={() => { setPixData(null); setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' }); }}>
+          onClick={() => { setConfirmedData(null); setPendingId(null); setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' }); }}>
           Fazer Novo Agendamento
         </button>
       </motion.div>

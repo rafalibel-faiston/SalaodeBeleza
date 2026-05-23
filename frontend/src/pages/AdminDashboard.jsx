@@ -89,7 +89,24 @@ function AgendaTab({ appointments, onRefresh }) {
   const [novaData, setNovaData] = useState('');
   const [novaHora, setNovaHora] = useState('');
   const [salvando, setSalvando] = useState(false);
-  const [filtro, setFiltro] = useState('scheduled');
+  const pendingCount = appointments.filter(a => a.status === 'pending').length;
+  const [filtro, setFiltro] = useState(() => pendingCount > 0 ? 'pending' : 'scheduled');
+
+  const confirmar = async (apt) => {
+    if (!window.confirm(`Confirmar agendamento de ${apt.client?.name}?`)) return;
+    try {
+      await api.patch(`/appointments/${apt.id}/status`, { status: 'confirmed' });
+      onRefresh();
+    } catch { alert('Erro ao confirmar.'); }
+  };
+
+  const recusar = async (apt) => {
+    if (!window.confirm(`Recusar agendamento de ${apt.client?.name}? A cliente será avisada na tela de espera.`)) return;
+    try {
+      await api.patch(`/appointments/${apt.id}/status`, { status: 'rejected' });
+      onRefresh();
+    } catch { alert('Erro ao recusar.'); }
+  };
 
   const confirmarReagendamento = async (apt) => {
     if (!novaData || !novaHora) return alert('Escolha data e horário.');
@@ -120,12 +137,18 @@ function AgendaTab({ appointments, onRefresh }) {
   };
 
   const filtros = [
-    { id: 'scheduled', label: '📅 Próximos' },
+    { id: 'pending',   label: pendingCount > 0 ? `⏳ Pendentes (${pendingCount})` : '⏳ Pendentes' },
+    { id: 'scheduled', label: '📅 Confirmados' },
     { id: 'no_show',   label: '🚫 Faltas' },
     { id: 'todos',     label: 'Todos' },
   ];
 
-  const lista = appointments.filter(a => filtro === 'todos' ? true : a.status === filtro);
+  const lista = appointments.filter(a => {
+    if (filtro === 'todos') return true;
+    if (filtro === 'pending') return a.status === 'pending';
+    if (filtro === 'scheduled') return a.status === 'scheduled' || a.status === 'confirmed';
+    return a.status === filtro;
+  });
 
   return (
     <div style={{ display: 'grid', gap: '16px' }}>
@@ -147,11 +170,12 @@ function AgendaTab({ appointments, onRefresh }) {
 
       {lista.map(apt => (
         <Card key={apt.id} style={{
-          borderLeft: `5px solid ${apt.status === 'no_show' ? '#dc2626' : apt.client?.is_blocked ? '#f59e0b' : 'var(--primary-color)'}`
+          borderLeft: `5px solid ${apt.status === 'no_show' ? '#dc2626' : apt.status === 'pending' ? '#f59e0b' : apt.client?.is_blocked ? '#f59e0b' : 'var(--primary-color)'}`
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <h3 style={{ color: 'var(--text-main)', fontSize: '1.05rem', margin: 0 }}>{apt.client?.name}</h3>
+              {apt.status === 'pending' && <Badge label="⏳ Pendente" color="#92400e" bg="#fef3c7" />}
               {apt.client?.is_blocked && <Badge label="🚫 Bloqueada" color="#dc2626" bg="#fee2e2" />}
               {apt.status === 'no_show' && <Badge label="Falta" color="#dc2626" bg="#fee2e2" />}
             </div>
@@ -197,7 +221,24 @@ function AgendaTab({ appointments, onRefresh }) {
             </div>
           )}
 
-          {apt.status !== 'no_show' && (
+          {apt.status === 'pending' && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              <button onClick={() => confirmar(apt)}
+                style={{ flex: 1, padding: '11px', background: '#d8438b', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer' }}>
+                ✅ Confirmar
+              </button>
+              <button onClick={() => recusar(apt)}
+                style={{ flex: 1, padding: '11px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer' }}>
+                ❌ Recusar
+              </button>
+              <button onClick={() => abrirWpp(apt.client?.phone, `Oi ${apt.client?.name?.split(' ')[0]}! ✨ Vi seu pedido de agendamento. Vou confirmar em instantes! 💅`)}
+                style={{ padding: '11px 14px', background: '#25D366', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}>
+                💬
+              </button>
+            </div>
+          )}
+
+          {apt.status !== 'no_show' && apt.status !== 'pending' && (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
               <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
@@ -512,10 +553,10 @@ function ClientesTab({ clients, appointments, onRefresh }) {
                         <span>{fmtDate(a.scheduled_at)} — {a.service?.name || '—'}</span>
                         <span style={{
                           padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
-                          background: a.status === 'no_show' ? '#fee2e2' : a.status === 'scheduled' ? '#dbeafe' : '#d1fae5',
-                          color: a.status === 'no_show' ? '#dc2626' : a.status === 'scheduled' ? '#1d4ed8' : '#065f46',
+                          background: a.status === 'no_show' ? '#fee2e2' : a.status === 'pending' ? '#fef3c7' : a.status === 'rejected' ? '#f3f4f6' : a.status === 'scheduled' || a.status === 'confirmed' ? '#dbeafe' : '#d1fae5',
+                          color: a.status === 'no_show' ? '#dc2626' : a.status === 'pending' ? '#92400e' : a.status === 'rejected' ? '#9ca3af' : a.status === 'scheduled' || a.status === 'confirmed' ? '#1d4ed8' : '#065f46',
                         }}>
-                          {a.status === 'no_show' ? 'Falta' : a.status === 'scheduled' ? 'Agendado' : 'Concluído'}
+                          {a.status === 'no_show' ? 'Falta' : a.status === 'pending' ? 'Pendente' : a.status === 'rejected' ? 'Recusado' : a.status === 'confirmed' ? 'Confirmado' : a.status === 'scheduled' ? 'Agendado' : 'Concluído'}
                         </span>
                       </div>
                     ))}

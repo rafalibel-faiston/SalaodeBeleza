@@ -75,5 +75,7 @@ class Financial(Base):
 
     refund_amount = Column(Float, nullable=True)
     refund_reason = Column(String, nullable=True)
+    pix_qr_code_base64 = Column(Text, nullable=True)
+    pix_copia_cola = Column(Text, nullable=True)
 
     appointment = relationship("Appointment", back_populates="financial")
