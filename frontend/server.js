@@ -1,11 +1,10 @@
 import express from 'express';
-import https from 'https';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const BACKEND_HOST = 'salaodebeleza-production-351e.up.railway.app';
+const BACKEND = 'https://salaodebeleza-production-351e.up.railway.app';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,39 +23,37 @@ function isApiRoute(url) {
   return API_PREFIXES.some(p => url.startsWith(p));
 }
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   if (!isApiRoute(req.url)) return next();
 
-  const chunks = [];
-  req.on('data', chunk => chunks.push(chunk));
-  req.on('end', () => {
+  try {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
 
-    const headers = { ...req.headers, host: BACKEND_HOST };
-    delete headers['content-encoding'];
-    if (body.length > 0) headers['content-length'] = body.length;
+    const headers = {};
+    for (const [k, v] of Object.entries(req.headers)) {
+      if (!['host', 'content-encoding', 'transfer-encoding', 'connection'].includes(k)) {
+        headers[k] = v;
+      }
+    }
 
-    const options = {
-      hostname: BACKEND_HOST,
-      port: 443,
-      path: req.url,
+    const fetchRes = await fetch(`${BACKEND}${req.url}`, {
       method: req.method,
       headers,
-    };
-
-    const proxyReq = https.request(options, (proxyRes) => {
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
-      proxyRes.pipe(res);
+      body: body.length > 0 ? body : undefined,
     });
 
-    proxyReq.on('error', (err) => {
-      console.error('Proxy error:', err.message);
-      if (!res.headersSent) res.status(502).json({ error: 'Backend indisponível' });
+    res.status(fetchRes.status);
+    fetchRes.headers.forEach((v, k) => {
+      if (!['content-encoding', 'transfer-encoding'].includes(k)) res.setHeader(k, v);
     });
-
-    if (body.length > 0) proxyReq.write(body);
-    proxyReq.end();
-  });
+    const buf = await fetchRes.arrayBuffer();
+    res.send(Buffer.from(buf));
+  } catch (err) {
+    console.error('Proxy error:', err.message);
+    if (!res.headersSent) res.status(502).json({ error: 'Backend indisponível' });
+  }
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));
