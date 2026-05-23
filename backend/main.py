@@ -97,6 +97,23 @@ def run_migrations():
     """Adiciona colunas novas ao banco sem perder dados existentes."""
     db_url = os.getenv("DATABASE_URL", "sqlite:///./banco_salao.db")
 
+    # Colunas opcionais que podem não existir em bancos antigos
+    pg_columns = [
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS instagram TEXT",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS favorite_volume TEXT",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS sensitivity TEXT",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS maintenance_frequency INTEGER",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS no_show_count INTEGER DEFAULT 0",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS cancellation_count INTEGER DEFAULT 0",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE services ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS refund_amount FLOAT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS refund_reason TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS mp_payment_id TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS pix_qr_code_base64 TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS pix_copia_cola TEXT",
+    ]
+
     if db_url.startswith("sqlite"):
         import sqlite3 as _sqlite3
         db_path = db_url.replace("sqlite:///", "")
@@ -104,29 +121,11 @@ def run_migrations():
         try:
             def _cols(table):
                 return {r[1] for r in raw.execute(f"PRAGMA table_info({table})")}
-
             needed = {
-                "clients": [
-                    ("instagram", "TEXT"),
-                    ("favorite_volume", "TEXT"),
-                    ("sensitivity", "TEXT"),
-                    ("maintenance_frequency", "INTEGER"),
-                    ("no_show_count", "INTEGER DEFAULT 0"),
-                    ("cancellation_count", "INTEGER DEFAULT 0"),
-                    ("is_blocked", "INTEGER DEFAULT 0"),
-                ],
-                "services": [
-                    ("is_active", "INTEGER DEFAULT 1"),
-                ],
-                "financials": [
-                    ("refund_amount", "REAL"),
-                    ("refund_reason", "TEXT"),
-                    ("mp_payment_id", "TEXT"),
-                    ("pix_qr_code_base64", "TEXT"),
-                    ("pix_copia_cola", "TEXT"),
-                ],
+                "clients": [("instagram","TEXT"),("favorite_volume","TEXT"),("sensitivity","TEXT"),("maintenance_frequency","INTEGER"),("no_show_count","INTEGER DEFAULT 0"),("cancellation_count","INTEGER DEFAULT 0"),("is_blocked","INTEGER DEFAULT 0")],
+                "services": [("is_active","INTEGER DEFAULT 1")],
+                "financials": [("refund_amount","REAL"),("refund_reason","TEXT"),("mp_payment_id","TEXT"),("pix_qr_code_base64","TEXT"),("pix_copia_cola","TEXT")],
             }
-
             for table, columns in needed.items():
                 existing = _cols(table)
                 for col, col_type in columns:
@@ -135,6 +134,15 @@ def run_migrations():
             raw.commit()
         finally:
             raw.close()
+    else:
+        # PostgreSQL suporta IF NOT EXISTS
+        with engine.connect() as conn:
+            for sql in pg_columns:
+                try:
+                    conn.execute(sql_text(sql))
+                    conn.commit()
+                except Exception:
+                    pass
 
     # Auto-seed serviços se o banco estiver vazio
     db = SessionLocal()
