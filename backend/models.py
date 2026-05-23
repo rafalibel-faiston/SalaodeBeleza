@@ -75,6 +75,7 @@ class Financial(Base):
 
     refund_amount = Column(Float, nullable=True)
     refund_reason = Column(String, nullable=True)
+    mp_payment_id = Column(String, nullable=True)
     pix_qr_code_base64 = Column(Text, nullable=True)
     pix_copia_cola = Column(Text, nullable=True)
 
