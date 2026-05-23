@@ -435,7 +435,7 @@ function AgendaTab({ appointments, onRefresh }) {
 
   return (
     <div style={{ display: 'grid', gap: '24px' }}>
-      {/* Layout principal: calendário + pendentes */}
+      {/* Layout principal: calendário + dia selecionado */}
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'start' }}>
         {/* Calendário */}
         <div>
@@ -446,22 +446,57 @@ function AgendaTab({ appointments, onRefresh }) {
           />
         </div>
 
-        {/* Pendentes */}
-        <Card style={{ padding: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '1rem' }}>
-              Pendentes de confirmação
-            </h3>
-            {pendentes.length > 0 && (
-              <span style={{ background: C.warning, color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '0.78rem', fontWeight: '800' }}>
-                {pendentes.length}
-              </span>
-            )}
-          </div>
-          {pendentes.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px 0', color: C.textMuted }}>
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎉</div>
-              <p style={{ fontSize: '0.9rem', margin: 0 }}>Nenhum agendamento pendente!</p>
+        {/* Dia selecionado (ou placeholder) */}
+        <Card style={{ padding: '18px', minHeight: '200px' }}>
+          {!selectedDate ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: C.textMuted }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📅</div>
+              <p style={{ fontSize: '0.9rem', margin: 0 }}>Clique em um dia no calendário para ver os agendamentos</p>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <h3 style={{ margin: 0, color: C.text, fontWeight: '700', fontSize: '1rem' }}>
+                  📅 {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ color: C.textMuted, fontSize: '0.82rem' }}>{dayApts.length} agendamento{dayApts.length !== 1 ? 's' : ''}</span>
+                  <button onClick={() => setSelectedDate(null)}
+                    style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '4px 10px', color: C.textMuted, cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+              {dayApts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px 0', color: C.textMuted }}>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>Nenhum agendamento neste dia.</p>
+                </div>
+              ) : (
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  {dayApts.map(apt => renderAptCard(apt, true))}
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
+
+      {/* Pendentes — abaixo */}
+      <Card style={{ padding: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '1rem' }}>
+            Pendentes de confirmação
+          </h3>
+          {pendentes.length > 0 && (
+            <span style={{ background: C.warning, color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '0.78rem', fontWeight: '800' }}>
+              {pendentes.length}
+            </span>
+          )}
+        </div>
+        {pendentes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px 0', color: C.textMuted }}>
+            <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎉</div>
+            <p style={{ fontSize: '0.9rem', margin: 0 }}>Nenhum agendamento pendente!</p>
             </div>
           ) : (
             <div>
@@ -525,34 +560,6 @@ function AgendaTab({ appointments, onRefresh }) {
             </div>
           )}
         </Card>
-      </div>
-
-      {/* Agendamentos do dia selecionado */}
-      {selectedDate && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-            <h3 style={{ margin: 0, color: C.text, fontWeight: '700', fontSize: '1.05rem' }}>
-              📅 {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ color: C.textMuted, fontSize: '0.85rem' }}>
-                {dayApts.length} agendamento{dayApts.length !== 1 ? 's' : ''}
-              </span>
-              <button onClick={() => setSelectedDate(null)}
-                style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '5px 12px', color: C.textMuted, cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600' }}>
-                ✕ Fechar
-              </button>
-            </div>
-          </div>
-          {dayApts.length === 0 ? (
-            <Card style={{ textAlign: 'center', padding: '32px' }}>
-              <p style={{ color: C.textMuted, margin: 0 }}>Nenhum agendamento neste dia.</p>
-            </Card>
-          ) : (
-            dayApts.map(apt => renderAptCard(apt))
-          )}
-        </div>
-      )}
     </div>
   );
 }
