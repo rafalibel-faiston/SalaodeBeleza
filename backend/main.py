@@ -260,43 +260,13 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(appointment)
 
-    # Gera Pix agora e armazena; só mostra à cliente após confirmação
-    pix_copia_cola = None
-    pix_qr_code_base64 = None
-    mp_payment_id = None
-
-    if MP_ACCESS_TOKEN != "APP_USR-TESTE-123" and service.deposit_amount > 0:
-        payment_data = {
-            "transaction_amount": service.deposit_amount,
-            "description": f"Sinal - {service.name} (Horário #{appointment.id})",
-            "payment_method_id": "pix",
-            "payer": {
-                "email": "cliente@giovannasoares.com",
-                "first_name": client.name,
-            },
-        }
-        try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(sdk.payment().create, payment_data)
-                mp_response = future.result(timeout=15)
-            if mp_response["status"] == 201:
-                mp_payment_id = str(mp_response["response"]["id"])
-                pix_info = mp_response["response"]["point_of_interaction"]["transaction_data"]
-                pix_copia_cola     = pix_info["qr_code"]
-                pix_qr_code_base64 = pix_info["qr_code_base64"]
-        except Exception:
-            pass
-
-    financial = models.Financial(
-        appointment_id=appointment.id,
-        total_value=total_value,
-        deposit_paid=0.0,
-        balance_due=balance_due,
-        mp_payment_id=mp_payment_id,
-        pix_copia_cola=pix_copia_cola,
-        pix_qr_code_base64=pix_qr_code_base64,
+    db.execute(
+        sql_text(
+            "INSERT INTO financials (appointment_id, total_value, deposit_paid, balance_due)"
+            " VALUES (:aid, :tv, :dp, :bd)"
+        ),
+        {"aid": appointment.id, "tv": total_value, "dp": 0.0, "bd": balance_due},
     )
-    db.add(financial)
     db.commit()
 
     return {
