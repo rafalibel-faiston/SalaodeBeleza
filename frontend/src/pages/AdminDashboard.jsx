@@ -996,6 +996,16 @@ export default function AdminDashboard() {
   // ── Auth ──────────────────────────────────────────────────────────────────
   const [token, setToken] = useState(() => sessionStorage.getItem('admin_token'));
 
+  // ── Estado do painel ──────────────────────────────────────────────────────
+  const [activeTab, setActiveTab]       = useState('agenda');
+  const [appointments, setAppointments] = useState([]);
+  const [services, setServices]         = useState([]);
+  const [stats, setStats]               = useState(null);
+  const [blockedSlots, setBlockedSlots] = useState([]);
+  const [clients, setClients]           = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
+
   // Ouve o evento disparado pelo interceptor axios quando recebe 401
   useEffect(() => {
     const handleExpired = () => setToken(null);
@@ -1010,16 +1020,6 @@ export default function AdminDashboard() {
 
   // Se não tiver token, mostra a tela de login
   if (!token) return <AdminLogin onLogin={setToken} />;
-
-  // ── Estado do painel ──────────────────────────────────────────────────────
-  const [activeTab, setActiveTab]       = useState('agenda');
-  const [appointments, setAppointments] = useState([]);
-  const [services, setServices]         = useState([]);
-  const [stats, setStats]               = useState(null);
-  const [blockedSlots, setBlockedSlots] = useState([]);
-  const [clients, setClients]           = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(null);
 
   const fetchAll = async () => {
     try {
