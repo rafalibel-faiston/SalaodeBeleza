@@ -177,12 +177,14 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
     else setViewMonth(m => m + 1);
   };
 
-  // Build set of days that have appointments
-  const daysWithApts = new Set();
+  // Separate sets: confirmed/scheduled vs pending
+  const daysScheduled = new Set();
+  const daysPending = new Set();
   appointments.forEach(a => {
     const d = new Date(a.scheduled_at);
     if (d.getFullYear() === viewYear && d.getMonth() === viewMonth) {
-      daysWithApts.add(d.getDate());
+      if (a.status === 'pending') daysPending.add(d.getDate());
+      else daysScheduled.add(d.getDate());
     }
   });
 
@@ -203,17 +205,17 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
   };
 
   return (
-    <Card style={{ padding: '16px', minWidth: '280px' }}>
+    <Card style={{ padding: '16px', minWidth: '290px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: C.textMuted, padding: '4px 8px', borderRadius: '8px', transition: 'background 0.2s' }}
+        <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', color: C.textMuted, padding: '4px 8px', borderRadius: '8px', transition: 'background 0.2s', lineHeight: 1 }}
           onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >‹</button>
         <span style={{ fontWeight: '700', fontSize: '0.95rem', color: C.text }}>
           {MESES[viewMonth]} {viewYear}
         </span>
-        <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: C.textMuted, padding: '4px 8px', borderRadius: '8px', transition: 'background 0.2s' }}
+        <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', color: C.textMuted, padding: '4px 8px', borderRadius: '8px', transition: 'background 0.2s', lineHeight: 1 }}
           onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >›</button>
@@ -222,7 +224,7 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
       {/* Dias da semana */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
         {DIAS_SEMANA.map(d => (
-          <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: '700', color: C.textMuted, padding: '4px 0', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+          <div key={d} style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: '700', color: C.textMuted, padding: '4px 0', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
             {d}
           </div>
         ))}
@@ -232,7 +234,8 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
         {cells.map((d, i) => {
           if (!d) return <div key={`e-${i}`} />;
-          const hasDot = daysWithApts.has(d);
+          const hasPending = daysPending.has(d);
+          const hasScheduled = daysScheduled.has(d);
           const today_ = isToday(d);
           const selected = isSelected(d);
 
@@ -242,6 +245,8 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
 
           if (selected) { bg = C.primary; color = '#fff'; }
           else if (today_) { bg = '#fdf1f6'; color = C.primaryDark; border = `1.5px solid ${C.primary}`; }
+
+          const dotColor = hasPending ? C.warning : hasScheduled ? C.primary : null;
 
           return (
             <button
@@ -258,11 +263,11 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
               onMouseLeave={e => { if (!selected) { e.currentTarget.style.background = bg; e.currentTarget.style.color = color; } }}
             >
               {d}
-              {hasDot && (
+              {dotColor && (
                 <span style={{
                   display: 'block', width: '5px', height: '5px',
-                  borderRadius: '50%', background: selected ? '#fff' : C.primary,
-                  margin: '2px auto 0', opacity: selected ? 0.9 : 1,
+                  borderRadius: '50%', background: selected ? '#fff' : dotColor,
+                  margin: '2px auto 0',
                 }} />
               )}
             </button>
@@ -271,10 +276,18 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
       </div>
 
       {/* Legenda */}
-      <div style={{ display: 'flex', gap: '12px', marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${C.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.73rem', color: C.textMuted }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: C.primary, display: 'inline-block' }} />
-          Com agendamentos
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.73rem', color: C.textMuted }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: C.primary, display: 'inline-block', flexShrink: 0 }} />
+          Agendado
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.73rem', color: C.textMuted }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: C.warning, display: 'inline-block', flexShrink: 0 }} />
+          Pendente
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.73rem', color: C.textMuted }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', border: `1.5px solid ${C.primary}`, background: '#fdf1f6', display: 'inline-block', flexShrink: 0 }} />
+          Hoje
         </div>
       </div>
     </Card>
@@ -345,91 +358,107 @@ function AgendaTab({ appointments, onRefresh }) {
       }).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
     : [];
 
-  const renderAptCard = (apt, compact = false) => (
+  const renderDayAptCard = (apt) => (
     <div
       key={apt.id}
       style={{
+        display: 'flex',
+        gap: '14px',
+        alignItems: 'flex-start',
         background: C.white,
         borderRadius: '14px',
         boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
-        padding: compact ? '14px' : '18px',
-        borderLeft: `4px solid ${apt.status === 'no_show' ? C.danger : apt.status === 'pending' ? C.warning : apt.client?.is_blocked ? C.warning : C.primary}`,
+        padding: '14px 16px',
         marginBottom: '10px',
         transition: 'transform 0.15s, box-shadow 0.15s',
       }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 5px 18px rgba(0,0,0,0.11)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.07)'; }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <h3 style={{ color: C.text, fontSize: '1rem', margin: 0, fontWeight: '700' }}>{apt.client?.name}</h3>
-          {apt.status === 'pending' && <Badge label="Pendente" color="#92400e" bg={C.warnBg} />}
-          {apt.client?.is_blocked && <Badge label="Bloqueada" color={C.danger} bg={C.dangerBg} />}
+      {/* Time bubble */}
+      <div style={{
+        flexShrink: 0,
+        background: apt.status === 'no_show' ? C.dangerBg : '#ecfdf5',
+        color: apt.status === 'no_show' ? C.danger : '#065f46',
+        borderRadius: '10px',
+        padding: '8px 10px',
+        textAlign: 'center',
+        minWidth: '54px',
+        fontWeight: '800',
+        fontSize: '0.88rem',
+        lineHeight: 1.2,
+      }}>
+        {fmtHora(apt.scheduled_at)}
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+          <span style={{ fontWeight: '700', color: C.text, fontSize: '0.95rem' }}>{apt.client?.name}</span>
           {apt.status === 'no_show' && <Badge label="Falta" color={C.danger} bg={C.dangerBg} />}
+          {apt.client?.is_blocked && <Badge label="Bloqueada" color={C.danger} bg={C.dangerBg} />}
         </div>
-        <span style={{ background: '#fdf1f6', color: C.primaryDark, padding: '4px 12px', borderRadius: '20px', fontWeight: '700', fontSize: '0.82rem' }}>
-          {fmtDate(apt.scheduled_at)}
-        </span>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', color: C.textMuted, fontSize: '0.85rem', marginBottom: '12px' }}>
-        <p style={{ margin: '2px 0' }}>📱 {apt.client?.phone}</p>
-        <p style={{ margin: '2px 0' }}>💅 {apt.service?.name}</p>
-        <p style={{ margin: '2px 0' }}>💰 Total: <strong style={{ color: C.text }}>{fmt(apt.financial?.total_value)}</strong></p>
-        <p style={{ margin: '2px 0', color: '#d9534f', fontWeight: '600' }}>🏷️ Receber: {fmt(apt.financial?.balance_due)}</p>
-      </div>
-
-      {apt.client?.medical_restrictions && (
-        <div style={{ background: C.warnBg, color: '#856404', padding: '8px 12px', borderRadius: '10px', fontSize: '0.84rem', marginBottom: '12px' }}>
-          ⚠️ {apt.client.medical_restrictions}
+        <p style={{ margin: '0 0 6px', color: C.textMuted, fontSize: '0.84rem' }}>
+          💅 {apt.service?.name}
+        </p>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '0.83rem' }}>
+          <span style={{ color: C.textMuted }}>Total: <strong style={{ color: C.text }}>{fmt(apt.financial?.total_value)}</strong></span>
+          <span style={{ color: '#d9534f', fontWeight: '600' }}>Receber: {fmt(apt.financial?.balance_due)}</span>
+          <span style={{ color: C.textMuted }}>📱 {apt.client?.phone}</span>
         </div>
-      )}
 
-      {reagendando === apt.id && (
-        <div style={{ background: '#fdf1f6', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
-          <p style={{ fontWeight: '700', marginBottom: '10px', color: C.primary, fontSize: '0.9rem' }}>📅 Novo horário</p>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <input type="date" value={novaData} onChange={e => setNovaData(e.target.value)}
-              min={new Date().toISOString().split('T')[0]} style={{ flex: 1, ...inputStyle }} />
-            <select value={novaHora} onChange={e => setNovaHora(e.target.value)} style={{ flex: 1, ...selectStyle }}>
-              <option value="">Horário...</option>
-              {timeSlots.map(t => <option key={t} value={t}>{t.replace(':', 'h')}</option>)}
-            </select>
+        {apt.client?.medical_restrictions && (
+          <div style={{ background: C.warnBg, color: '#856404', padding: '6px 10px', borderRadius: '8px', fontSize: '0.82rem', marginTop: '8px' }}>
+            ⚠️ {apt.client.medical_restrictions}
           </div>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-            <PrimaryBtn onClick={() => confirmarReagendamento(apt)} disabled={salvando} style={{ flex: 1 }}>
-              {salvando ? 'Salvando...' : '✅ Confirmar'}
-            </PrimaryBtn>
-            <button onClick={() => setReagendando(null)}
-              style={{ padding: '9px 16px', background: '#eee', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>
-              Cancelar
+        )}
+
+        {reagendando === apt.id && (
+          <div style={{ background: '#fdf1f6', borderRadius: '12px', padding: '12px', marginTop: '10px' }}>
+            <p style={{ fontWeight: '700', marginBottom: '10px', color: C.primary, fontSize: '0.88rem' }}>📅 Novo horário</p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <input type="date" value={novaData} onChange={e => setNovaData(e.target.value)}
+                min={new Date().toISOString().split('T')[0]} style={{ flex: 1, ...inputStyle }} />
+              <select value={novaHora} onChange={e => setNovaHora(e.target.value)} style={{ flex: 1, ...selectStyle }}>
+                <option value="">Horário...</option>
+                {timeSlots.map(t => <option key={t} value={t}>{t.replace(':', 'h')}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+              <PrimaryBtn onClick={() => confirmarReagendamento(apt)} disabled={salvando} style={{ flex: 1 }}>
+                {salvando ? 'Salvando...' : '✅ Confirmar'}
+              </PrimaryBtn>
+              <button onClick={() => setReagendando(null)}
+                style={{ padding: '9px 16px', background: '#eee', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {apt.status !== 'no_show' && apt.status !== 'pending' && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+            <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
+            <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
+            <button onClick={() => { setReagendando(apt.id); setNovaData(''); setNovaHora(''); }}
+              style={{ flex: 1, minWidth: '90px', padding: '8px', background: C.warnBg, color: '#92400e', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}>
+              🔄 Remarcar
+            </button>
+            <button onClick={() => registrarFalta(apt)}
+              style={{ flex: 1, minWidth: '80px', padding: '8px', background: C.dangerBg, color: C.danger, border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}>
+              🚫 Falta
+            </button>
+            <button onClick={() => cancelar(apt, 'cliente')}
+              style={{ flex: 1, minWidth: '80px', padding: '8px', background: C.warnBg, color: '#92400e', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}>
+              📵 Cancelou
+            </button>
+            <button onClick={() => cancelar(apt, 'admin')}
+              style={{ padding: '8px 12px', background: '#f3f4f6', color: '#9ca3af', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>
+              ✕
             </button>
           </div>
-        </div>
-      )}
-
-      {apt.status !== 'no_show' && apt.status !== 'pending' && (
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
-          <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
-          <button onClick={() => { setReagendando(apt.id); setNovaData(''); setNovaHora(''); }}
-            style={{ flex: 1, minWidth: '100px', padding: '9px', background: C.warnBg, color: '#92400e', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>
-            🔄 Remarcar
-          </button>
-          <button onClick={() => registrarFalta(apt)}
-            style={{ flex: 1, minWidth: '90px', padding: '9px', background: C.dangerBg, color: C.danger, border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>
-            🚫 Falta
-          </button>
-          <button onClick={() => cancelar(apt, 'cliente')}
-            style={{ flex: 1, minWidth: '90px', padding: '9px', background: C.warnBg, color: '#92400e', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>
-            📵 Cancelou
-          </button>
-          <button onClick={() => cancelar(apt, 'admin')}
-            style={{ padding: '9px 14px', background: '#f3f4f6', color: '#9ca3af', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}>
-            ✕
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 
@@ -438,42 +467,55 @@ function AgendaTab({ appointments, onRefresh }) {
       {/* Layout principal: calendário + dia selecionado */}
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'start' }}>
         {/* Calendário */}
-        <div>
-          <MonthCalendar
-            appointments={appointments}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-          />
-        </div>
+        <MonthCalendar
+          appointments={appointments}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
 
         {/* Dia selecionado (ou placeholder) */}
-        <Card style={{ padding: '18px', minHeight: '200px' }}>
+        <Card style={{ padding: '20px', minHeight: '220px' }}>
           {!selectedDate ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: C.textMuted }}>
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📅</div>
-              <p style={{ fontSize: '0.9rem', margin: 0 }}>Clique em um dia no calendário para ver os agendamentos</p>
+            <div style={{ textAlign: 'center', padding: '50px 0', color: C.textMuted }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>📅</div>
+              <p style={{ fontSize: '0.9rem', margin: 0, fontWeight: '500' }}>Selecione um dia no calendário</p>
+              <p style={{ fontSize: '0.82rem', margin: '4px 0 0', color: '#94a3b8' }}>para ver os agendamentos daquele dia</p>
             </div>
           ) : (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                <h3 style={{ margin: 0, color: C.text, fontWeight: '700', fontSize: '1rem' }}>
-                  📅 {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: C.textMuted, fontSize: '0.82rem' }}>{dayApts.length} agendamento{dayApts.length !== 1 ? 's' : ''}</span>
-                  <button onClick={() => setSelectedDate(null)}
-                    style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '4px 10px', color: C.textMuted, cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
-                    ✕
-                  </button>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h3 style={{
+                    margin: 0,
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    background: `linear-gradient(135deg, ${C.primaryDark} 0%, ${C.primary} 100%)`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    fontSize: '1.1rem',
+                    fontWeight: '700',
+                  }}>
+                    Agenda do Dia Selecionado
+                  </h3>
+                  <p style={{ margin: '2px 0 0', color: C.textMuted, fontSize: '0.85rem' }}>
+                    {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {' · '}
+                    <span style={{ fontWeight: '600', color: C.text }}>{dayApts.length} agendamento{dayApts.length !== 1 ? 's' : ''}</span>
+                  </p>
                 </div>
+                <button onClick={() => setSelectedDate(null)}
+                  style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '6px 12px', color: C.textMuted, cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                  ✕ Fechar
+                </button>
               </div>
               {dayApts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px 0', color: C.textMuted }}>
+                  <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🌸</div>
                   <p style={{ margin: 0, fontSize: '0.9rem' }}>Nenhum agendamento neste dia.</p>
                 </div>
               ) : (
-                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                  {dayApts.map(apt => renderAptCard(apt, true))}
+                <div style={{ maxHeight: '440px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {dayApts.map(apt => renderDayAptCard(apt))}
                 </div>
               )}
             </>
@@ -481,85 +523,123 @@ function AgendaTab({ appointments, onRefresh }) {
         </Card>
       </div>
 
-      {/* Pendentes — abaixo */}
-      <Card style={{ padding: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '1rem' }}>
-            Pendentes de confirmação
+      {/* Pendentes de Confirmação */}
+      <Card style={{ padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+          <span style={{ fontSize: '1.2rem' }}>🔔</span>
+          <h3 style={{ margin: 0, fontWeight: '800', color: C.text, fontSize: '1rem' }}>
+            Pendentes de Confirmação
           </h3>
           {pendentes.length > 0 && (
-            <span style={{ background: C.warning, color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '0.78rem', fontWeight: '800' }}>
+            <span style={{
+              background: C.warning, color: '#fff',
+              borderRadius: '20px', padding: '2px 10px',
+              fontSize: '0.75rem', fontWeight: '800',
+              boxShadow: '0 2px 6px rgba(245,158,11,0.4)',
+            }}>
               {pendentes.length}
             </span>
           )}
         </div>
+
         {pendentes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '30px 0', color: C.textMuted }}>
             <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎉</div>
             <p style={{ fontSize: '0.9rem', margin: 0 }}>Nenhum agendamento pendente!</p>
-            </div>
-          ) : (
-            <div>
-              {pendentes.map(apt => (
-                <div key={apt.id} style={{
-                  background: '#fffbf0',
-                  borderRadius: '12px',
-                  border: `1px solid #fde68a`,
-                  padding: '14px',
-                  marginBottom: '10px',
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {pendentes.map(apt => (
+              <div key={apt.id} style={{
+                background: '#fffbf0',
+                borderRadius: '14px',
+                border: `1px solid #fde68a`,
+                padding: '16px',
+              }}>
+                {/* Top row: name + badge */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '6px' }}>
+                  <span style={{ fontWeight: '800', color: C.text, fontSize: '1rem' }}>{apt.client?.name}</span>
+                  <span style={{
+                    background: '#fef3c7', color: '#92400e',
+                    border: '1px solid #fde68a',
+                    borderRadius: '20px', padding: '3px 12px',
+                    fontSize: '0.72rem', fontWeight: '800',
+                    letterSpacing: '0.05em', textTransform: 'uppercase',
+                  }}>
+                    ⏳ AGUARDANDO
+                  </span>
+                </div>
+
+                {/* Info box */}
+                <div style={{
+                  background: C.white,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '12px',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '6px 16px',
+                  fontSize: '0.84rem',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                    <div>
-                      <p style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '0.95rem' }}>{apt.client?.name}</p>
-                      <p style={{ margin: '3px 0 0', color: C.textMuted, fontSize: '0.82rem' }}>
-                        {fmtDate(apt.scheduled_at)} · 💅 {apt.service?.name}
-                      </p>
-                    </div>
-                    <Badge label="⏳ Aguardando" color="#92400e" bg={C.warnBg} />
+                  <div>
+                    <span style={{ color: C.textMuted, display: 'block', fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '2px' }}>Data e Hora</span>
+                    <span style={{ color: C.text, fontWeight: '600' }}>{fmtDate(apt.scheduled_at)}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                    <button onClick={() => confirmar(apt)}
-                      style={{
-                        flex: 1, padding: '10px', background: '#ecfdf5', color: '#065f46',
-                        border: `1px solid #6ee7b7`, borderRadius: '10px',
-                        fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#d1fae5'}
-                      onMouseLeave={e => e.currentTarget.style.background = '#ecfdf5'}
-                    >
-                      ✅ Confirmar
-                    </button>
-                    <button onClick={() => recusar(apt)}
-                      style={{
-                        flex: 1, padding: '10px', background: C.dangerBg, color: C.danger,
-                        border: `1px solid #fca5a5`, borderRadius: '10px',
-                        fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#fecaca'}
-                      onMouseLeave={e => e.currentTarget.style.background = C.dangerBg}
-                    >
-                      ❌ Recusar
-                    </button>
-                    <button onClick={() => abrirWpp(apt.client?.phone, `Oi ${apt.client?.name?.split(' ')[0]}! ✨ Vi seu pedido de agendamento. Vou confirmar em instantes! 💅`)}
-                      style={{
-                        padding: '10px 14px', background: '#25D366', color: '#fff',
-                        border: 'none', borderRadius: '10px', fontWeight: '700',
-                        fontSize: '0.85rem', cursor: 'pointer',
-                        transition: 'opacity 0.15s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                    >
-                      💬
-                    </button>
+                  <div>
+                    <span style={{ color: C.textMuted, display: 'block', fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '2px' }}>Valor</span>
+                    <span style={{ color: C.primary, fontWeight: '700' }}>{fmt(apt.financial?.total_value)}</span>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <span style={{ color: C.textMuted, display: 'block', fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '2px' }}>Procedimento</span>
+                    <span style={{ color: C.text, fontWeight: '600' }}>💅 {apt.service?.name}</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => confirmar(apt)}
+                    style={{
+                      flex: 1, padding: '10px', background: '#ecfdf5', color: '#065f46',
+                      border: `1px solid #6ee7b7`, borderRadius: '10px',
+                      fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#d1fae5'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#ecfdf5'}
+                  >
+                    ✅ Confirmar
+                  </button>
+                  <button onClick={() => recusar(apt)}
+                    style={{
+                      flex: 1, padding: '10px', background: C.dangerBg, color: C.danger,
+                      border: `1px solid #fca5a5`, borderRadius: '10px',
+                      fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#fecaca'}
+                    onMouseLeave={e => e.currentTarget.style.background = C.dangerBg}
+                  >
+                    ❌ Recusar
+                  </button>
+                  <button onClick={() => abrirWpp(apt.client?.phone, `Oi ${apt.client?.name?.split(' ')[0]}! ✨ Vi seu pedido de agendamento. Vou confirmar em instantes! 💅`)}
+                    style={{
+                      padding: '10px 16px', background: '#25D366', color: '#fff',
+                      border: 'none', borderRadius: '10px', fontWeight: '700',
+                      fontSize: '0.85rem', cursor: 'pointer',
+                      transition: 'opacity 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                  >
+                    💬
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
