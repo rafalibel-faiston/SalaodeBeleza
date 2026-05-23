@@ -1013,14 +1013,6 @@ export default function AdminDashboard() {
     return () => window.removeEventListener('admin-session-expired', handleExpired);
   }, []);
 
-  const logout = () => {
-    sessionStorage.removeItem('admin_token');
-    setToken(null);
-  };
-
-  // Se não tiver token, mostra a tela de login
-  if (!token) return <AdminLogin onLogin={setToken} />;
-
   const fetchAll = async () => {
     try {
       const [a, s, st, b, c] = await Promise.all([
@@ -1042,7 +1034,15 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { if (token) fetchAll(); }, [token]);
+
+  const logout = () => {
+    sessionStorage.removeItem('admin_token');
+    setToken(null);
+  };
+
+  // Se não tiver token, mostra a tela de login
+  if (!token) return <AdminLogin onLogin={setToken} />;
 
   if (loading) return (
     <div style={{ textAlign: 'center', marginTop: '80px' }}>
