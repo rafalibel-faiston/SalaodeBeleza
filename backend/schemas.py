@@ -15,7 +15,7 @@ class ServiceCreate(ServiceBase):
 
 class ServiceResponse(ServiceBase):
     id: int
-    is_active: bool = True
+    is_active: Optional[bool] = True
 
     class Config:
         from_attributes = True
@@ -44,9 +44,9 @@ class ClientResponse(ClientBase):
     favorite_volume: Optional[str] = None
     sensitivity: Optional[str] = None
     maintenance_frequency: Optional[int] = None
-    no_show_count: int = 0
-    cancellation_count: int = 0
-    is_blocked: bool = False
+    no_show_count: Optional[int] = 0
+    cancellation_count: Optional[int] = 0
+    is_blocked: Optional[bool] = False
     created_at: datetime
 
     class Config:
@@ -58,7 +58,7 @@ class FinancialBase(BaseModel):
     deposit_paid: float
     balance_due: float
     payment_method: Optional[str] = None
-    machine_fee_applied: bool = False
+    machine_fee_applied: Optional[bool] = False
 
 class FinancialResponse(FinancialBase):
     id: int
