@@ -121,7 +121,7 @@ const BtnWpp = ({ label, color, onClick }) => (
     flex: 1, minWidth: '140px', padding: '9px 12px',
     background: color, color: '#fff', border: 'none',
     borderRadius: '12px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
-    fontFamily: C.fontSans, letterSpacing: '0.02em',
+    fontFamily: C.fontSans,
     boxShadow: `0 4px 14px ${color}55`,
     transition: 'opacity 0.2s, transform 0.12s',
   }}
@@ -136,7 +136,6 @@ const Badge = ({ label, color = C.primary, bg = '#fdf1f6' }) => (
   <span style={{
     display: 'inline-block', padding: '3px 10px', borderRadius: '20px',
     fontSize: '0.73rem', fontWeight: '700', background: bg, color,
-    letterSpacing: '0.02em',
   }}>
     {label}
   </span>
@@ -153,7 +152,6 @@ const PrimaryBtn = ({ children, onClick, disabled, style = {} }) => (
       color: '#fff', border: 'none', borderRadius: '12px',
       fontWeight: '700', fontSize: '0.88rem', cursor: disabled ? 'not-allowed' : 'pointer',
       fontFamily: C.fontSans,
-      letterSpacing: '0.02em',
       boxShadow: disabled ? 'none' : '0 4px 14px rgba(160,25,94,0.35)',
       transition: 'opacity 0.2s, transform 0.12s, box-shadow 0.2s',
       ...style,
@@ -230,7 +228,7 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
           onMouseEnter={e => e.currentTarget.style.background = 'rgba(216,67,139,0.16)'}
           onMouseLeave={e => e.currentTarget.style.background = 'rgba(216,67,139,0.08)'}
         >‹</button>
-        <span style={{ fontWeight: '800', fontSize: '0.95rem', fontFamily: C.fontDisplay, color: C.text, display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.02em' }}>
+        <span style={{ fontWeight: '700', fontSize: '0.95rem', fontFamily: C.fontSans, color: C.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '0.9rem' }}>📅</span>
           {MESES[viewMonth]} {viewYear}
         </span>
@@ -534,7 +532,7 @@ function AgendaTab({ appointments, onRefresh }) {
             background: 'rgba(245,158,11,0.15)', color: '#92400e',
             borderRadius: '8px', padding: '3px 10px',
             fontSize: '0.7rem', fontWeight: '800',
-            letterSpacing: '0.06em', textTransform: 'uppercase',
+            letterSpacing: '0.03em', textTransform: 'uppercase',
             border: '1px solid rgba(245,158,11,0.3)',
           }}>AGUARDANDO</span>
           {apt.client?.is_blocked && <Badge label="Bloqueada" color={C.danger} bg={C.dangerBg} />}
@@ -570,7 +568,7 @@ function AgendaTab({ appointments, onRefresh }) {
             flex: 1, padding: '11px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff',
             border: 'none', borderRadius: '12px',
             fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
-            fontFamily: C.fontSans, letterSpacing: '0.02em',
+            fontFamily: C.fontSans,
             boxShadow: '0 4px 12px rgba(16,185,129,0.35)',
             transition: 'all 0.15s',
           }}
@@ -584,7 +582,7 @@ function AgendaTab({ appointments, onRefresh }) {
             flex: 1, padding: '11px', background: 'rgba(220,38,38,0.06)', color: C.danger,
             border: '1px solid rgba(220,38,38,0.25)', borderRadius: '12px',
             fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
-            fontFamily: C.fontSans, letterSpacing: '0.02em', transition: 'all 0.15s',
+            fontFamily: C.fontSans, transition: 'all 0.15s',
           }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.12)'; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.4)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.06)'; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.25)'; }}
@@ -664,7 +662,7 @@ function AgendaTab({ appointments, onRefresh }) {
         <Card style={{ padding: '18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
             <span style={{ fontSize: '1rem' }}>🔽</span>
-            <h3 style={{ margin: 0, fontWeight: '800', color: C.text, fontSize: '0.88rem', fontFamily: C.fontDisplay, letterSpacing: '0.03em', textTransform: 'uppercase' }}>Filtros de Solicitações</h3>
+            <h3 style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '0.9rem', fontFamily: C.fontSans }}>Filtros de Solicitações</h3>
           </div>
           {filters.map(f => (
             <button
@@ -706,9 +704,8 @@ function AgendaTab({ appointments, onRefresh }) {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                fontSize: '1.15rem',
+                fontSize: '1.1rem',
                 fontWeight: '800',
-                letterSpacing: '0.01em',
               }}>
                 Agenda do Dia Selecionado
               </h3>
@@ -755,7 +752,7 @@ function AgendaTab({ appointments, onRefresh }) {
                 <span style={{ fontSize: '1.2rem' }}>
                   {activeFilter === 'pendentes' ? '🔔' : activeFilter === 'confirmados' ? '✅' : '📋'}
                 </span>
-                <h3 style={{ margin: 0, fontWeight: '800', color: C.text, fontSize: '1rem', fontFamily: C.fontDisplay, letterSpacing: '0.02em' }}>
+                <h3 style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '1rem', fontFamily: C.fontSans }}>
                   {activeFilter === 'pendentes' ? 'Pendentes de Confirmação'
                     : activeFilter === 'confirmados' ? 'Confirmados'
                     : 'Histórico Completo'}
@@ -1643,7 +1640,7 @@ export default function AdminDashboard() {
               <span style={{ fontWeight: '900', fontSize: '1.1rem', color: C.text }}>Giovanna</span>{' '}
               <span style={{ fontWeight: '900', fontSize: '1.1rem', color: C.primary, fontStyle: 'italic' }}>Beauty</span>
             </p>
-            <p style={{ margin: 0, fontSize: '0.6rem', color: C.textMuted, fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: C.fontSans }}>
+            <p style={{ margin: 0, fontSize: '0.65rem', color: C.textMuted, fontWeight: '500', letterSpacing: '0.03em', fontFamily: C.fontSans }}>
               + Lash &amp; Brow · High Aesthetic Studio +
             </p>
           </div>
@@ -1676,7 +1673,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p style={{ margin: 0, fontWeight: '700', fontSize: '0.88rem', color: C.text, fontFamily: C.fontDisplay }}>Giovanna</p>
-              <p style={{ margin: 0, fontSize: '0.66rem', color: C.primary, fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: C.fontSans }}>Lash Expert</p>
+              <p style={{ margin: 0, fontSize: '0.68rem', color: C.primary, fontWeight: '600', fontFamily: C.fontSans }}>Lash Expert</p>
             </div>
           </div>
 
@@ -1731,8 +1728,8 @@ export default function AdminDashboard() {
                 fontWeight: active ? '700' : '500',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                fontSize: '0.75rem',
-                letterSpacing: '0.05em',
+                fontSize: '0.76rem',
+                letterSpacing: '0.01em',
                 borderRadius: '20px',
                 transition: 'all 0.2s',
                 display: 'flex',
