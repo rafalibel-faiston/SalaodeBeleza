@@ -23,19 +23,10 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI(title="API Salão de Cílios - Giovanna Soares")
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-# No Railway, defina a variável de ambiente do backend:
-#   ALLOWED_ORIGINS=https://sua-url-frontend.up.railway.app
-# Múltiplas origens: separar por vírgula (sem espaço)
-# Se não definida, libera todas as origens (útil em desenvolvimento)
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
-_wildcard = _raw_origins == "*"
-ALLOWED_ORIGINS = ["*"] if _wildcard else _raw_origins.split(",")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    # allow_credentials não pode ser True quando allow_origins=["*"]
-    allow_credentials=not _wildcard,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
