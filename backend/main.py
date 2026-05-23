@@ -61,6 +61,41 @@ def verify_admin(credentials: HTTPAuthorizationCredentials = Depends(_http_beare
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+# ─── SEED DE SERVIÇOS ─────────────────────────────────────────────────────────
+_CATALOG = [
+    {"name": "Volume Brasileiro (Fio Y) - Aplicação",                        "category": "cilios",      "base_price": 115.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Brasileiro (Fio Y) - Manutenção (15 a 20 dias)",        "category": "cilios",      "base_price":  75.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Brasileiro (Fio Y) - Manutenção (Até 25 dias)",         "category": "cilios",      "base_price":  80.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Egípcio (Fio 4D) - Aplicação",                          "category": "cilios",      "base_price": 120.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Egípcio (Fio 4D) - Manutenção (15 a 20 dias)",         "category": "cilios",      "base_price":  80.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Egípcio (Fio 4D) - Manutenção (Até 25 dias)",          "category": "cilios",      "base_price":  85.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Luxxo (Fio 5D) - Aplicação",                            "category": "cilios",      "base_price": 125.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Luxxo (Fio 5D) - Manutenção (15 a 20 dias)",           "category": "cilios",      "base_price":  85.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Luxxo (Fio 5D) - Manutenção (Até 25 dias)",            "category": "cilios",      "base_price":  90.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Glamour (Fio 6D) - Aplicação",                          "category": "cilios",      "base_price": 130.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Glamour (Fio 6D) - Manutenção (15 a 20 dias)",         "category": "cilios",      "base_price":  90.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Glamour (Fio 6D) - Manutenção (Até 25 dias)",          "category": "cilios",      "base_price":  95.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Foxy Eyes (Fio 5D Curvature M) - Aplicação",            "category": "cilios",      "base_price": 130.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Foxy Eyes (Fio 5D Curvature M) - Manutenção (15a20d)", "category": "cilios",      "base_price":  90.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Mega Brasileiro (Fio Y CAPPING)",                        "category": "cilios",      "base_price": 135.0,  "deposit_amount": 30.0,  "estimated_minutes": 180},
+    {"name": "Volume Mega Egípcio (Fio 4D CAPPING)",                         "category": "cilios",      "base_price": 140.0,  "deposit_amount": 30.0,  "estimated_minutes": 180},
+    {"name": "Volume Mega Luxxo (Fio 5D CAPPING)",                           "category": "cilios",      "base_price": 145.0,  "deposit_amount": 30.0,  "estimated_minutes": 180},
+    {"name": "Brow Lamination Simples",                                       "category": "sobrancelha", "base_price":  85.0,  "deposit_amount": 15.0,  "estimated_minutes":  60},
+    {"name": "Brow Lamination com Tintura",                                   "category": "sobrancelha", "base_price":  95.0,  "deposit_amount": 15.0,  "estimated_minutes":  80},
+    {"name": "Design Personalizado de Sobrancelhas",                          "category": "sobrancelha", "base_price":  30.0,  "deposit_amount": 15.0,  "estimated_minutes":  45},
+    {"name": "Design Personalizado com Henna",                                "category": "sobrancelha", "base_price":  40.0,  "deposit_amount": 15.0,  "estimated_minutes":  60},
+    {"name": "Depilação de Buço",                                             "category": "sobrancelha", "base_price":  10.0,  "deposit_amount":  0.0,  "estimated_minutes":  20},
+    {"name": "Remoção Química (Cílios feitos por mim + Nova Aplicação)",      "category": "remocao",     "base_price":  20.0,  "deposit_amount":  0.0,  "estimated_minutes":  40},
+    {"name": "Remoção Química (Após 3 manutenções com aviso prévio)",         "category": "remocao",     "base_price":  10.0,  "deposit_amount":  0.0,  "estimated_minutes":  40},
+    {"name": "Remoção de Extensão de Outras Profissionais",                   "category": "remocao",     "base_price":  25.0,  "deposit_amount":  0.0,  "estimated_minutes":  50},
+    {"name": "Remoção de Tufos",                                              "category": "remocao",     "base_price":  30.0,  "deposit_amount":  0.0,  "estimated_minutes":  50},
+]
+
+def _seed_services(db):
+    for item in _CATALOG:
+        db.add(models.Service(**item))
+    db.commit()
+
 # ─── MIGRAÇÃO AUTOMÁTICA ──────────────────────────────────────────────────────
 @app.on_event("startup")
 def run_migrations():
@@ -77,6 +112,8 @@ def run_migrations():
         "ALTER TABLE financials ADD COLUMN refund_amount REAL",
         "ALTER TABLE financials ADD COLUMN refund_reason TEXT",
         "ALTER TABLE financials ADD COLUMN mp_payment_id TEXT",
+        "ALTER TABLE financials ADD COLUMN pix_qr_code_base64 TEXT",
+        "ALTER TABLE financials ADD COLUMN pix_copia_cola TEXT",
     ]
     with engine.connect() as conn:
         for sql in novos_campos:
@@ -85,6 +122,14 @@ def run_migrations():
                 conn.commit()
             except Exception:
                 pass  # Coluna já existe — OK
+
+    # Auto-seed serviços se o banco estiver vazio
+    db = SessionLocal()
+    try:
+        if db.query(models.Service).count() == 0:
+            _seed_services(db)
+    finally:
+        db.close()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AUTH — LOGIN
@@ -190,30 +235,24 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
     total_value = service.base_price
     balance_due = total_value - service.deposit_amount
 
+    # Cria agendamento como PENDENTE — aguarda confirmação da Giovanna
     appointment = models.Appointment(
         client_id=client.id,
         service_id=service.id,
         scheduled_at=booking.scheduled_at,
         is_maintenance=booking.is_maintenance,
+        status="pending",
     )
     db.add(appointment)
     db.commit()
     db.refresh(appointment)
 
-    financial = models.Financial(
-        appointment_id=appointment.id,
-        total_value=total_value,
-        deposit_paid=0.0,
-        balance_due=balance_due,
-    )
-    db.add(financial)
-    db.commit()
-
-    # Gera Pix via Mercado Pago
+    # Gera Pix agora e armazena; só mostra à cliente após confirmação
     pix_copia_cola = None
     pix_qr_code_base64 = None
+    mp_payment_id = None
 
-    if MP_ACCESS_TOKEN != "APP_USR-TESTE-123":
+    if MP_ACCESS_TOKEN != "APP_USR-TESTE-123" and service.deposit_amount > 0:
         payment_data = {
             "transaction_amount": service.deposit_amount,
             "description": f"Sinal - {service.name} (Horário #{appointment.id})",
@@ -226,26 +265,31 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
         try:
             mp_response = sdk.payment().create(payment_data)
             if mp_response["status"] == 201:
-                payment_id = str(mp_response["response"]["id"])
+                mp_payment_id = str(mp_response["response"]["id"])
                 pix_info = mp_response["response"]["point_of_interaction"]["transaction_data"]
-                pix_copia_cola      = pix_info["qr_code"]
-                pix_qr_code_base64  = pix_info["qr_code_base64"]
-                # Salva o ID do pagamento para o webhook confirmar depois
-                financial.mp_payment_id = payment_id
-                db.commit()
+                pix_copia_cola     = pix_info["qr_code"]
+                pix_qr_code_base64 = pix_info["qr_code_base64"]
         except Exception:
-            pass  # Agendamento salvo; Pix resolvido manualmente
+            pass
+
+    financial = models.Financial(
+        appointment_id=appointment.id,
+        total_value=total_value,
+        deposit_paid=0.0,
+        balance_due=balance_due,
+        mp_payment_id=mp_payment_id,
+        pix_copia_cola=pix_copia_cola,
+        pix_qr_code_base64=pix_qr_code_base64,
+    )
+    db.add(financial)
+    db.commit()
 
     return {
-        "message": "Agendamento criado com sucesso!",
         "appointment_id": appointment.id,
-        "pix_copia_cola": pix_copia_cola,
-        "pix_qr_code_base64": pix_qr_code_base64,
-        "total_value": total_value,
-        "deposit_amount": service.deposit_amount,
-        "balance_due": balance_due,
+        "status": "pending",
         "service_name": service.name,
         "client_name": client.name,
+        "scheduled_at": appointment.scheduled_at.isoformat(),
     }
 
 @app.get("/appointments/", response_model=list[schemas.AppointmentResponse])
@@ -254,6 +298,48 @@ def get_appointments(
     _: None = Depends(verify_admin),
 ):
     return db.query(models.Appointment).order_by(models.Appointment.scheduled_at.asc()).all()
+
+@app.get("/appointments/{appointment_id}/status")
+def get_appointment_status(appointment_id: int, db: Session = Depends(get_db)):
+    """Público — cliente faz polling para saber se foi confirmado."""
+    apt = db.query(models.Appointment).filter(models.Appointment.id == appointment_id).first()
+    if not apt:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    resp = {
+        "id": apt.id,
+        "status": apt.status,
+        "service_name": apt.service.name if apt.service else None,
+        "client_name": apt.client.name if apt.client else None,
+        "scheduled_at": apt.scheduled_at.isoformat(),
+    }
+    if apt.status == "confirmed" and apt.financial:
+        resp["pix_copia_cola"]     = apt.financial.pix_copia_cola
+        resp["pix_qr_code_base64"] = apt.financial.pix_qr_code_base64
+        resp["total_value"]        = apt.financial.total_value
+        resp["deposit_amount"]     = apt.financial.total_value - apt.financial.balance_due
+        resp["balance_due"]        = apt.financial.balance_due
+    return resp
+
+class StatusUpdate(BaseModel):
+    status: str
+
+@app.patch("/appointments/{appointment_id}/status")
+def update_appointment_status(
+    appointment_id: int,
+    data: StatusUpdate,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    """Admin confirma ou recusa um agendamento pendente."""
+    valid = {"pending", "confirmed", "scheduled", "rejected", "completed", "no_show"}
+    if data.status not in valid:
+        raise HTTPException(status_code=400, detail="Status inválido.")
+    apt = db.query(models.Appointment).filter(models.Appointment.id == appointment_id).first()
+    if not apt:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    apt.status = data.status
+    db.commit()
+    return {"message": "Status atualizado!", "status": apt.status}
 
 @app.post("/appointments/admin/")
 def create_admin_booking(
