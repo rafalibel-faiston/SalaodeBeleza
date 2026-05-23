@@ -9,6 +9,17 @@ const BACKEND = 'https://salaodebeleza-production-351e.up.railway.app';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const proxy = createProxyMiddleware({
+  target: BACKEND,
+  changeOrigin: true,
+  on: {
+    error: (err, req, res) => {
+      console.error('Proxy error:', err.message);
+      res.status(502).json({ error: 'Backend indisponível' });
+    },
+  },
+});
+
 const apiRoutes = [
   '/appointments',
   '/services',
@@ -20,13 +31,7 @@ const apiRoutes = [
   '/minha-conta',
 ];
 
-app.use(
-  apiRoutes,
-  createProxyMiddleware({
-    target: BACKEND,
-    changeOrigin: true,
-  })
-);
+apiRoutes.forEach(route => app.use(route, proxy));
 
 app.use(express.static(path.join(__dirname, 'dist')));
 
@@ -34,4 +39,4 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`Servidor frontend na porta ${PORT}`));
+app.listen(PORT, () => console.log(`Frontend na porta ${PORT}, proxy -> ${BACKEND}`));
