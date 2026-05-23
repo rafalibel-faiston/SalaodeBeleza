@@ -193,8 +193,8 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
   const isToday = (d) => d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
   const isSelected = (d) => {
     if (!selectedDate) return false;
-    const s = new Date(selectedDate);
-    return d === s.getDate() && viewMonth === s.getMonth() && viewYear === s.getFullYear();
+    const [y, m, day] = selectedDate.split('-').map(Number);
+    return d === day && viewMonth === m - 1 && viewYear === y;
   };
 
   const handleDayClick = (d) => {
