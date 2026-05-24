@@ -336,10 +336,14 @@ function AgendaTab({ appointments, onRefresh }) {
     const t = new Date();
     return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
   });
-  const [activeFilter, setActiveFilter] = useState('pendentes');
+  const [activeFilter, setActiveFilter] = useState('proximos');
 
-  const pendentes = appointments.filter(a => a.status === 'pending');
+  const now = new Date();
+  const pendentes   = appointments.filter(a => a.status === 'pending');
   const confirmados = appointments.filter(a => ['confirmed', 'scheduled', 'completed'].includes(a.status));
+  const proximos    = appointments
+    .filter(a => new Date(a.scheduled_at) >= now && !['rejected', 'cancelled', 'no_show'].includes(a.status))
+    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
 
   const confirmar = async (apt) => {
     if (!window.confirm(`Confirmar agendamento de ${apt.client?.name}? O WhatsApp de confirmação será aberto automaticamente.`)) return;
@@ -400,6 +404,8 @@ function AgendaTab({ appointments, onRefresh }) {
     ? pendentes
     : activeFilter === 'confirmados'
     ? confirmados
+    : activeFilter === 'proximos'
+    ? proximos
     : [...appointments].sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
 
   const fmtSelectedDate = selectedDate
@@ -658,9 +664,10 @@ function AgendaTab({ appointments, onRefresh }) {
   );
 
   const filters = [
-    { id: 'pendentes', label: 'Pendentes de Aprovação', count: pendentes.length, color: C.warning, activeBg: 'rgba(245,158,11,0.08)' },
-    { id: 'historico', label: 'Histórico Completo', count: appointments.length, color: C.danger, activeBg: 'rgba(220,38,38,0.06)' },
-    { id: 'confirmados', label: 'Confirmados Geral', count: confirmados.length, color: C.success, activeBg: 'rgba(16,185,129,0.08)' },
+    { id: 'proximos',   label: 'Próximos Agendamentos', count: proximos.length,    color: '#6366f1', activeBg: 'rgba(99,102,241,0.08)' },
+    { id: 'pendentes',  label: 'Aguardando Aprovação',  count: pendentes.length,   color: C.warning, activeBg: 'rgba(245,158,11,0.08)' },
+    { id: 'confirmados',label: 'Confirmados',           count: confirmados.length, color: C.success, activeBg: 'rgba(16,185,129,0.08)' },
+    { id: 'historico',  label: 'Histórico Completo',    count: appointments.length,color: C.danger,  activeBg: 'rgba(220,38,38,0.06)' },
   ];
 
   const activeFilterInfo = filters.find(f => f.id === activeFilter);
