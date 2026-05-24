@@ -8,6 +8,16 @@ import {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+const useMobile = () => {
+  const [m, setM] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 768);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return m;
+};
+
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v ?? 0);
 
@@ -317,6 +327,7 @@ function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
 // ─── ABA: AGENDA ─────────────────────────────────────────────────────────────
 
 function AgendaTab({ appointments, onRefresh }) {
+  const isMobile = useMobile();
   const [reagendando, setReagendando] = useState(null);
   const [novaData, setNovaData] = useState('');
   const [novaHora, setNovaHora] = useState('');
@@ -655,7 +666,7 @@ function AgendaTab({ appointments, onRefresh }) {
   const activeFilterInfo = filters.find(f => f.id === activeFilter);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '22px', alignItems: 'start', fontFamily: C.fontSans }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: '22px', alignItems: 'start', fontFamily: C.fontSans }}>
       {/* Coluna esquerda: calendário + filtros */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <MonthCalendar appointments={appointments} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
@@ -799,6 +810,7 @@ function AgendaTab({ appointments, onRefresh }) {
 // ─── ABA: NOVO ATENDIMENTO ───────────────────────────────────────────────────
 
 function NovoAtendimentoTab({ services, onRefresh }) {
+  const isMobile = useMobile();
   const [form, setForm] = useState({ client_name: '', client_phone: '', service_id: '', scheduled_date: '', scheduled_time: '', medical_restrictions: '' });
   const [loading, setLoading] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -852,7 +864,7 @@ function NovoAtendimentoTab({ services, onRefresh }) {
             {services.filter(s => s.is_active !== false).map(s => <option key={s.id} value={s.id}>[{s.category?.toUpperCase()}] {s.name}</option>)}
           </select>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
           <div style={fieldWrap}>
             <label style={labelStyle}>Data <span style={{ color: C.primary }}>*</span></label>
             <input type="date" name="scheduled_date" value={form.scheduled_date} onChange={handleChange} min={new Date().toISOString().split('T')[0]} required style={inputStyle} />
@@ -880,6 +892,7 @@ function NovoAtendimentoTab({ services, onRefresh }) {
 // ─── ABA: CLIENTES (CRM) ─────────────────────────────────────────────────────
 
 function ClientesTab({ clients, appointments, onRefresh }) {
+  const isMobile = useMobile();
   const [search, setSearch] = useState('');
   const [filtro, setFiltro] = useState('todas');
   const [expandedId, setExpandedId] = useState(null);
@@ -1016,7 +1029,7 @@ function ClientesTab({ clients, appointments, onRefresh }) {
                 {isEditing && (
                   <div style={{ background: '#fdf1f6', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
                     <p style={{ fontWeight: '700', color: C.primary, marginBottom: '14px', fontSize: '0.9rem' }}>✏️ Editar preferências</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                       {[
                         { label: 'Instagram', key: 'instagram', placeholder: '@usuario' },
                         { label: 'Volume favorito', key: 'favorite_volume', placeholder: 'Ex: Volume Russo' },
@@ -1116,6 +1129,7 @@ const CATEGORIAS = [
 ];
 
 function CatalogoTab({ services, onRefresh }) {
+  const isMobile = useMobile();
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [showAdd, setShowAdd] = useState(false);
@@ -1176,7 +1190,7 @@ function CatalogoTab({ services, onRefresh }) {
       {showAdd && (
         <Card style={{ borderTop: `4px solid ${C.primary}` }}>
           <h4 style={{ color: C.primaryDark, marginBottom: '16px', fontWeight: '800', fontSize: '1rem' }}>Novo serviço</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
             <div>
               <label style={smallLabel}>Nome *</label>
               <input value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })} placeholder="Ex: Volume Russo" style={inputStyle} />
@@ -1220,7 +1234,7 @@ function CatalogoTab({ services, onRefresh }) {
                 >
                   {editingId === s.id ? (
                     <div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                         {[
                           { label: 'Nome', key: 'name', type: 'text' },
                           { label: 'Preço (R$)', key: 'base_price', type: 'number' },
@@ -1421,6 +1435,7 @@ function agruparBloqueios(slots) {
 function fmtDiaMes(d) { const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}`; }
 
 function ConfiguracoesTab({ blockedSlots, onRefresh }) {
+  const isMobile = useMobile();
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [reason, setReason] = useState('');
@@ -1454,7 +1469,7 @@ function ConfiguracoesTab({ blockedSlots, onRefresh }) {
       <Card>
         <h3 style={{ color: C.primaryDark, marginBottom: '6px', fontWeight: '800', fontSize: '1rem' }}>Fechar agenda</h3>
         <p style={{ color: C.textMuted, fontSize: '0.88rem', marginBottom: '20px' }}>Selecione um dia ou período. As datas bloqueadas não aparecerão para agendamento.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
           <div>
             <label style={labelStyle}>Data de início *</label>
             <input type="date" value={dateStart} min={hoje}
@@ -1525,6 +1540,7 @@ const TABS = [
 ];
 
 export default function AdminDashboard() {
+  const isMobile = useMobile();
   // ── Auth ──────────────────────────────────────────────────────────────────
   const [token, setToken] = useState(() => sessionStorage.getItem('admin_token'));
 
@@ -1614,7 +1630,7 @@ export default function AdminDashboard() {
         backdropFilter: 'blur(24px) saturate(160%)',
         WebkitBackdropFilter: 'blur(24px) saturate(160%)',
         borderBottom: '1px solid rgba(216,67,139,0.12)',
-        padding: '0 28px',
+        padding: isMobile ? '0 14px' : '0 28px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -1648,17 +1664,19 @@ export default function AdminDashboard() {
         </div>
 
         {/* Right: date/time + user + logout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end' }}>
-              <span style={{ fontSize: '0.78rem' }}>🗓</span>
-              <span style={{ fontSize: '0.82rem', color: C.text, fontWeight: '500', fontFamily: C.fontSans }}>{currentDate}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '20px' }}>
+          {!isMobile && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: '0.78rem' }}>🗓</span>
+                <span style={{ fontSize: '0.82rem', color: C.text, fontWeight: '500', fontFamily: C.fontSans }}>{currentDate}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end', marginTop: '2px' }}>
+                <span style={{ fontSize: '0.78rem' }}>⏰</span>
+                <span style={{ fontSize: '0.82rem', color: C.textMuted, fontFamily: C.fontMono, letterSpacing: '0.04em' }}>{currentTime}</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end', marginTop: '2px' }}>
-              <span style={{ fontSize: '0.78rem' }}>⏰</span>
-              <span style={{ fontSize: '0.82rem', color: C.textMuted, fontFamily: C.fontMono, letterSpacing: '0.04em' }}>{currentTime}</span>
-            </div>
-          </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
@@ -1761,7 +1779,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '28px 20px' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: isMobile ? '16px 12px' : '28px 20px' }}>
         {activeTab === 'agenda'     && <AgendaTab appointments={appointments} onRefresh={fetchAll} />}
         {activeTab === 'novo'       && <NovoAtendimentoTab services={services} onRefresh={fetchAll} />}
         {activeTab === 'clientes'   && <ClientesTab clients={clients} appointments={appointments} onRefresh={fetchAll} />}
