@@ -457,9 +457,7 @@ export default function ClientBooking() {
         ))}
       </div>
 
-      <motion.section className="catalog-grid"
-        initial="hidden" whileInView="visible"
-        viewport={{ once:true, margin:'-80px' }}>
+      <motion.section className="catalog-grid">
         {CATALOG
           .filter(item => {
             if (!catalogFilter) return true;
@@ -467,14 +465,15 @@ export default function ClientBooking() {
             return item.filterCat === catalogFilter;
           })
           .map(({ key, img, title, sub }, i) => {
-            const price = cardPrice(key);
-            const dur   = cardDur(key);
+            const dur = cardDur(key);
             return (
               <motion.div key={key} className="catalog-card"
-                variants={cardVar} custom={i}
+                initial={{ opacity: 0, y: 36, scale: 0.96 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: false, margin: '-60px' }}
+                transition={{ duration: 0.55, delay: i * 0.06, ease }}
                 onClick={() => setModal(key)}
-                whileHover={{ y:-10, boxShadow:'0 28px 64px rgba(216,67,139,0.18)' }}
-                transition={{ duration:0.25 }}>
+                whileHover={{ y:-10, boxShadow:'0 28px 64px rgba(216,67,139,0.18)' }}>
                 <div style={{ overflow:'hidden', borderRadius:'20px 20px 0 0', position:'relative' }}>
                   <motion.img
                     src={img} alt={title}
@@ -490,14 +489,6 @@ export default function ClientBooking() {
                 <div className="catalog-card-body">
                   <h4>{title}</h4>
                   <p>{sub}</p>
-                  {price && (
-                    <p style={{ marginTop:'10px', fontSize:'0.82rem', color:'var(--muted)' }}>
-                      a partir de{' '}
-                      <strong style={{ color:'var(--pink)', fontFamily:'var(--font-mono)', fontSize:'0.9rem' }}>
-                        R$ {price.toFixed(2).replace('.',',')}
-                      </strong>
-                    </p>
-                  )}
                 </div>
               </motion.div>
             );
@@ -671,6 +662,24 @@ export default function ClientBooking() {
               onClick={(e) => e.stopPropagation()}>
               <button className="modal-close" onClick={() => setModal(null)}>✕</button>
               <h3 className="modal-title">{MODALS[activeModal].title}</h3>
+              {(() => {
+                const price = cardPrice(activeModal);
+                const dur   = cardDur(activeModal);
+                return (price || dur) ? (
+                  <div style={{ display:'flex', gap:'10px', marginBottom:'16px', flexWrap:'wrap' }}>
+                    {price && (
+                      <span style={{ background:'var(--pink-light)', border:'1px solid var(--pink-mid)', borderRadius:'999px', padding:'5px 14px', fontSize:'0.8rem', fontWeight:700, color:'var(--pink)', fontFamily:'var(--font-mono)' }}>
+                        a partir de R$ {price.toFixed(2).replace('.',',')}
+                      </span>
+                    )}
+                    {dur && (
+                      <span style={{ background:'#f5f5f5', border:'1px solid #e5e5e5', borderRadius:'999px', padding:'5px 14px', fontSize:'0.8rem', fontWeight:600, color:'var(--muted)' }}>
+                        ⏱ {fmtDur(dur)}
+                      </span>
+                    )}
+                  </div>
+                ) : null;
+              })()}
               <p className="modal-text">{MODALS[activeModal].text}</p>
               <div className="modal-alert">{MODALS[activeModal].alert}</div>
               <motion.button className="btn-primary"
