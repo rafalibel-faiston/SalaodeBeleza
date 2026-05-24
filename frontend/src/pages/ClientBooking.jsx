@@ -25,12 +25,20 @@ const cardVar = {
 
 // ── Static data ───────────────────────────────────────────────
 const CATALOG = [
-  { key: 'brasileiro',   img: '/fotos/volume-brasileiro-fio-y.png',  title: 'Volume Brasileiro',      sub: 'Fio Y' },
-  { key: 'egipcio',      img: '/fotos/volume-egipicio-fio-4D.png',   title: 'Volume Egípcio',         sub: 'Fio 4D' },
-  { key: 'luxxo',        img: '/fotos/volume-luxxo-fio-5D.png',      title: 'Volume Luxxo / Glamour', sub: 'Fios 5D e 6D' },
-  { key: 'foxy',         img: '/fotos/volume-foxxy-eyes.png',        title: 'Volume Foxy Eyes',       sub: 'Curvatura M' },
-  { key: 'capping',      img: '/fotos/volume-mega-brasileiro.png',   title: 'Técnica Capping',        sub: 'Mega Retenção · Sem manutenção' },
-  { key: 'sobrancelhas', img: '/fotos/brow lamination.png',          title: 'Sobrancelhas',           sub: 'Lamination, Henna e Design' },
+  { key: 'brasileiro',   filterCat: 'cilios',      img: '/fotos/volume-brasileiro-fio-y.png',  title: 'Volume Brasileiro',      sub: 'Fio Y' },
+  { key: 'egipcio',      filterCat: 'cilios',      img: '/fotos/volume-egipicio-fio-4D.png',   title: 'Volume Egípcio',         sub: 'Fio 4D' },
+  { key: 'luxxo',        filterCat: 'cilios',      img: '/fotos/volume-luxxo-fio-5D.png',      title: 'Volume Luxxo / Glamour', sub: 'Fios 5D e 6D' },
+  { key: 'foxy',         filterCat: 'cilios',      img: '/fotos/volume-foxxy-eyes.png',        title: 'Volume Foxy Eyes',       sub: 'Curvatura M' },
+  { key: 'capping',      filterCat: 'capping',     img: '/fotos/volume-mega-brasileiro.png',   title: 'Técnica Capping',        sub: 'Mega Retenção · Sem manutenção' },
+  { key: 'sobrancelhas', filterCat: 'sobrancelha', img: '/fotos/brow lamination.png',          title: 'Sobrancelhas',           sub: 'Lamination, Henna e Design' },
+];
+
+const FILTER_TABS = [
+  { key: null,          label: 'TODOS' },
+  { key: 'cilios',      label: 'CÍLIOS' },
+  { key: 'sobrancelha', label: 'SOBRANCELHAS' },
+  { key: 'capping',     label: 'CAPPING' },
+  { key: 'remocao',     label: 'REMOÇÃO' },
 ];
 
 const MODALS = {
@@ -62,6 +70,8 @@ export default function ClientBooking() {
   const [rejected, setRejected]   = useState(false);
   const [loading, setLoading]     = useState(false);
   const [activeModal, setModal]   = useState(null);
+  const [catalogFilter, setCatalogFilter] = useState(null);
+  const [svcCategory, setSvcCategory]     = useState(null);
   const formRef  = useRef(null);
   const storyRef = useRef(null);
 
@@ -114,12 +124,41 @@ export default function ClientBooking() {
     } finally { setLoading(false); }
   };
 
-  const scrollToForm = (filter) => {
+  const fmtDur = (mins) => {
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return m ? `${h}h${m}` : `${h}h`;
+  };
+
+  const cardPrice = (key) => {
+    const kw = MODALS[key]?.filter;
+    let matches;
+    if (key === 'capping')      matches = services.filter(s => s.name.includes('CAPPING'));
+    else if (key === 'sobrancelhas') matches = services.filter(s => s.category === 'sobrancelha');
+    else matches = services.filter(s => s.name.includes(kw) && s.name.includes('Aplicação'));
+    if (!matches.length) return null;
+    return Math.min(...matches.map(s => s.base_price));
+  };
+
+  const cardDur = (key) => {
+    const kw = MODALS[key]?.filter;
+    let matches;
+    if (key === 'capping')      matches = services.filter(s => s.name.includes('CAPPING'));
+    else if (key === 'sobrancelhas') matches = services.filter(s => s.category === 'sobrancelha' && s.name.includes('Lamination'));
+    else matches = services.filter(s => s.name.includes(kw) && s.name.includes('Aplicação'));
+    return matches[0]?.estimated_minutes ?? null;
+  };
+
+  const scrollToForm = (filter, catKey) => {
     setModal(null);
     if (filter && services.length > 0) {
       const match = services.find(s => s.name.includes(filter) && s.name.includes('Aplicação'))
                  || services.find(s => s.name.includes(filter));
-      if (match) setFormData(p => ({ ...p, service_id: String(match.id) }));
+      if (match) {
+        setFormData(p => ({ ...p, service_id: String(match.id) }));
+        setSvcCategory(catKey || match.category || 'cilios');
+      }
+    } else if (catKey) {
+      setSvcCategory(catKey);
     }
     formRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -207,7 +246,7 @@ export default function ClientBooking() {
         <br />
         <button
           style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '0.82rem', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline' }}
-          onClick={() => { setPendingId(null); setRejected(false); setFormData({ client_name: '', client_phone: '', service_id: '', scheduled_date: '', scheduled_time: '' }); }}>
+          onClick={() => { setPendingId(null); setRejected(false); setSvcCategory(null); setFormData({ client_name: '', client_phone: '', service_id: '', scheduled_date: '', scheduled_time: '' }); }}>
           Fazer um novo agendamento
         </button>
       </motion.div>
@@ -268,7 +307,7 @@ export default function ClientBooking() {
           </div>
         )}
         <button className="btn-primary" style={{ background:'#555', marginTop:'10px' }}
-          onClick={() => { setConfirmedData(null); setPendingId(null); setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' }); }}>
+          onClick={() => { setConfirmedData(null); setPendingId(null); setSvcCategory(null); setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' }); }}>
           Fazer Novo Agendamento
         </button>
       </motion.div>
@@ -408,33 +447,80 @@ export default function ClientBooking() {
       </div>
 
       <div className="filter-pills">
-        {['CÍLIOS','SOBRANCELHAS','CAPPING','REMOÇÃO'].map(f => (
-          <span key={f} className="filter-pill">{f}</span>
+        {FILTER_TABS.map(({ key, label }) => (
+          <button
+            key={label}
+            className={`filter-pill${catalogFilter === key ? ' filter-pill--active' : ''}`}
+            onClick={() => setCatalogFilter(key)}>
+            {label}
+          </button>
         ))}
       </div>
 
       <motion.section className="catalog-grid"
         initial="hidden" whileInView="visible"
         viewport={{ once:true, margin:'-80px' }}>
-        {CATALOG.map(({ key, img, title, sub }, i) => (
-          <motion.div key={key} className="catalog-card"
-            variants={cardVar} custom={i}
-            onClick={() => setModal(key)}
-            whileHover={{ y:-10, boxShadow:'0 28px 64px rgba(216,67,139,0.18)' }}
-            transition={{ duration:0.25 }}>
-            <div style={{ overflow:'hidden', borderRadius:'20px 20px 0 0' }}>
-              <motion.img
-                src={img} alt={title}
-                whileHover={{ scale:1.08 }} transition={{ duration:0.5 }}
-                style={{ width:'100%', height:'240px', objectFit:'cover', display:'block' }}
-                onError={(e) => { e.target.src = FALLBACK; }} />
-            </div>
-            <div className="catalog-card-body">
-              <h4>{title}</h4>
-              <p>{sub}</p>
-            </div>
+        {CATALOG
+          .filter(item => {
+            if (!catalogFilter) return true;
+            if (catalogFilter === 'remocao') return false;
+            return item.filterCat === catalogFilter;
+          })
+          .map(({ key, img, title, sub }, i) => {
+            const price = cardPrice(key);
+            const dur   = cardDur(key);
+            return (
+              <motion.div key={key} className="catalog-card"
+                variants={cardVar} custom={i}
+                onClick={() => setModal(key)}
+                whileHover={{ y:-10, boxShadow:'0 28px 64px rgba(216,67,139,0.18)' }}
+                transition={{ duration:0.25 }}>
+                <div style={{ overflow:'hidden', borderRadius:'20px 20px 0 0', position:'relative' }}>
+                  <motion.img
+                    src={img} alt={title}
+                    whileHover={{ scale:1.08 }} transition={{ duration:0.5 }}
+                    style={{ width:'100%', height:'240px', objectFit:'cover', display:'block' }}
+                    onError={(e) => { e.target.src = FALLBACK; }} />
+                  {dur && (
+                    <span style={{ position:'absolute', top:'12px', right:'12px', background:'rgba(0,0,0,0.52)', backdropFilter:'blur(6px)', color:'#fff', fontSize:'0.7rem', fontWeight:700, padding:'4px 10px', borderRadius:'999px', letterSpacing:'0.5px' }}>
+                      ⏱ {fmtDur(dur)}
+                    </span>
+                  )}
+                </div>
+                <div className="catalog-card-body">
+                  <h4>{title}</h4>
+                  <p>{sub}</p>
+                  {price && (
+                    <p style={{ marginTop:'10px', fontSize:'0.82rem', color:'var(--muted)' }}>
+                      a partir de{' '}
+                      <strong style={{ color:'var(--pink)', fontFamily:'var(--font-mono)', fontSize:'0.9rem' }}>
+                        R$ {price.toFixed(2).replace('.',',')}
+                      </strong>
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })
+        }
+        {catalogFilter === 'remocao' && (
+          <motion.div
+            variants={cardVar} custom={0}
+            style={{ gridColumn:'1/-1', textAlign:'center', padding:'40px 20px', color:'var(--muted)' }}>
+            <p style={{ fontSize:'2rem', marginBottom:'12px' }}>🧴</p>
+            <p style={{ fontWeight:700, color:'var(--text)', marginBottom:'8px' }}>Remoção Química</p>
+            <p style={{ fontSize:'0.9rem', lineHeight:1.7 }}>
+              Remoção feita com segurança usando produtos especializados.<br />
+              A partir de <strong style={{ color:'var(--pink)' }}>R$ 10,00</strong> · Agendamento pelo formulário abaixo.
+            </p>
+            <motion.button className="btn-pill btn-pill-primary"
+              style={{ marginTop:'20px', width:'fit-content', display:'inline-flex' }}
+              whileHover={{ scale:1.04 }} whileTap={{ scale:0.97 }}
+              onClick={() => scrollToForm(null, 'remocao')}>
+              Agendar Remoção →
+            </motion.button>
           </motion.div>
-        ))}
+        )}
       </motion.section>
       </div>{/* /catalog-section */}
 
@@ -475,14 +561,78 @@ export default function ClientBooking() {
           </div>
           <div className="form-group">
             <label>Procedimento</label>
-            <select name="service_id" required onChange={handleChange} value={formData.service_id}>
-              <option value="" disabled>Selecione o serviço...</option>
-              {services.map(srv => (
-                <option key={srv.id} value={srv.id}>
-                  [{srv.category ? srv.category.toUpperCase() : 'SERVIÇO'}] {srv.name}
-                </option>
+            <div className="svc-cat-tabs">
+              {[
+                { k:'cilios',      l:'💅 Cílios' },
+                { k:'sobrancelha', l:'✨ Sobrancelhas' },
+                { k:'remocao',     l:'🧴 Remoção' },
+              ].map(({ k, l }) => (
+                <button key={k} type="button"
+                  className={`svc-cat-tab${svcCategory === k ? ' active' : ''}`}
+                  onClick={() => { setSvcCategory(k); setFormData(p => ({ ...p, service_id: '' })); }}>
+                  {l}
+                </button>
               ))}
-            </select>
+            </div>
+            {svcCategory && (
+              <div className="svc-list">
+                {svcCategory === 'cilios' && (
+                  <>
+                    <div className="svc-group-label">Aplicação & Manutenção</div>
+                    {services.filter(s => s.category === 'cilios' && !s.name.includes('CAPPING')).map(srv => (
+                      <div key={srv.id}
+                        className={`svc-row${formData.service_id === String(srv.id) ? ' selected' : ''}`}
+                        onClick={() => setFormData(p => ({ ...p, service_id: String(srv.id) }))}>
+                        <span className="svc-row-name">{srv.name}</span>
+                        <span className="svc-row-meta">
+                          <span className="svc-row-price">R$ {srv.base_price.toFixed(2).replace('.',',')}</span>
+                          <span className="svc-row-dur">{fmtDur(srv.estimated_minutes)}</span>
+                        </span>
+                      </div>
+                    ))}
+                    <div className="svc-group-label">Técnica Capping (sem manutenção)</div>
+                    {services.filter(s => s.name.includes('CAPPING')).map(srv => (
+                      <div key={srv.id}
+                        className={`svc-row${formData.service_id === String(srv.id) ? ' selected' : ''}`}
+                        onClick={() => setFormData(p => ({ ...p, service_id: String(srv.id) }))}>
+                        <span className="svc-row-name">{srv.name}</span>
+                        <span className="svc-row-meta">
+                          <span className="svc-row-price">R$ {srv.base_price.toFixed(2).replace('.',',')}</span>
+                          <span className="svc-row-dur">{fmtDur(srv.estimated_minutes)}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {svcCategory === 'sobrancelha' && services.filter(s => s.category === 'sobrancelha').map(srv => (
+                  <div key={srv.id}
+                    className={`svc-row${formData.service_id === String(srv.id) ? ' selected' : ''}`}
+                    onClick={() => setFormData(p => ({ ...p, service_id: String(srv.id) }))}>
+                    <span className="svc-row-name">{srv.name}</span>
+                    <span className="svc-row-meta">
+                      <span className="svc-row-price">R$ {srv.base_price.toFixed(2).replace('.',',')}</span>
+                      <span className="svc-row-dur">{fmtDur(srv.estimated_minutes)}</span>
+                    </span>
+                  </div>
+                ))}
+                {svcCategory === 'remocao' && services.filter(s => s.category === 'remocao').map(srv => (
+                  <div key={srv.id}
+                    className={`svc-row${formData.service_id === String(srv.id) ? ' selected' : ''}`}
+                    onClick={() => setFormData(p => ({ ...p, service_id: String(srv.id) }))}>
+                    <span className="svc-row-name">{srv.name}</span>
+                    <span className="svc-row-meta">
+                      <span className="svc-row-price">R$ {srv.base_price.toFixed(2).replace('.',',')}</span>
+                      <span className="svc-row-dur">{fmtDur(srv.estimated_minutes)}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!svcCategory && (
+              <p style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.4)', marginTop:'10px', textAlign:'center' }}>
+                Escolha uma categoria acima para ver os serviços
+              </p>
+            )}
           </div>
           <div className="form-group">
             <label>Data</label>
@@ -525,7 +675,10 @@ export default function ClientBooking() {
               <div className="modal-alert">{MODALS[activeModal].alert}</div>
               <motion.button className="btn-primary"
                 whileHover={{ scale:1.02 }} whileTap={{ scale:0.98 }}
-                onClick={() => scrollToForm(MODALS[activeModal].filter)}>
+                onClick={() => {
+                  const item = CATALOG.find(c => c.key === activeModal);
+                  scrollToForm(MODALS[activeModal].filter, item?.filterCat);
+                }}>
                 Quero Agendar →
               </motion.button>
             </motion.div>

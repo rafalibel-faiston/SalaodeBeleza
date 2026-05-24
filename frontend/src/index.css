@@ -432,6 +432,114 @@ body {
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.filter-pill:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+.filter-pill--active {
+  background: linear-gradient(135deg, var(--pink), var(--pink-dark));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(216,67,139,0.35);
+}
+
+/* ─── SERVICE SELECTOR (form) ───────────────────────────────── */
+.svc-cat-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.svc-cat-tab {
+  flex: 1;
+  min-width: 80px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.55);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+}
+.svc-cat-tab:hover {
+  border-color: rgba(216,67,139,0.4);
+  color: rgba(255,255,255,0.85);
+}
+.svc-cat-tab.active {
+  background: linear-gradient(135deg, rgba(216,67,139,0.25), rgba(160,25,94,0.18));
+  border-color: rgba(216,67,139,0.55);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(216,67,139,0.22);
+}
+.svc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.svc-list::-webkit-scrollbar { width: 4px; }
+.svc-list::-webkit-scrollbar-track { background: transparent; }
+.svc-list::-webkit-scrollbar-thumb { background: rgba(216,67,139,0.3); border-radius: 4px; }
+.svc-group-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.3);
+  padding: 8px 4px 2px;
+}
+.svc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.svc-row:hover {
+  background: rgba(216,67,139,0.1);
+  border-color: rgba(216,67,139,0.3);
+}
+.svc-row.selected {
+  background: linear-gradient(135deg, rgba(216,67,139,0.2), rgba(160,25,94,0.14));
+  border-color: rgba(216,67,139,0.55);
+  box-shadow: 0 0 0 1px rgba(216,67,139,0.2);
+}
+.svc-row-name {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.82);
+  line-height: 1.35;
+  flex: 1;
+}
+.svc-row.selected .svc-row-name { color: #fff; }
+.svc-row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.svc-row-price {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--pink);
+}
+.svc-row-dur {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.35);
 }
 
 /* ─── CATALOG SECTION (with bg decoration) ─────────────────── */
