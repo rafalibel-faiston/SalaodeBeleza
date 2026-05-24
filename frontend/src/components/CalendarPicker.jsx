@@ -79,8 +79,8 @@ export default function CalendarPicker({ value, onChange }) {
 
       {/* Legend */}
       <div className="cal-legend">
-        <span><i className="cal-dot cal-dot-avail"/>Disponível</span>
-        <span><i className="cal-dot cal-dot-blk"/>Indisponível</span>
+        <span><i className="cal-dot cal-dot-avail"/>Selecionado</span>
+        <span><i className="cal-dot cal-dot-blk"/>Bloqueado</span>
       </div>
     </div>
   );
