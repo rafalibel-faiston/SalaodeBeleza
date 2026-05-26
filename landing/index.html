@@ -267,6 +267,40 @@ footer{
   .section{padding:64px 20px}
   footer{flex-direction:column;text-align:center}
 }
+
+/* ── SCROLL ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+/* Hero — animates on page load */
+.hero-badge{animation:fadeUp 0.7s cubic-bezier(.22,1,.36,1) both;animation-delay:.08s}
+.hero h1   {animation:fadeUp 0.8s cubic-bezier(.22,1,.36,1) both;animation-delay:.22s}
+.hero-sub  {animation:fadeUp 0.8s cubic-bezier(.22,1,.36,1) both;animation-delay:.38s}
+.hero-btns {animation:fadeUp 0.75s cubic-bezier(.22,1,.36,1) both;animation-delay:.52s}
+.hero-proof{animation:fadeUp 0.7s cubic-bezier(.22,1,.36,1) both;animation-delay:.66s}
+
+/* Scroll reveal base */
+.reveal{
+  opacity:0;transform:translateY(28px);
+  transition:opacity 0.65s cubic-bezier(.22,1,.36,1),transform 0.65s cubic-bezier(.22,1,.36,1);
+}
+.reveal.visible{opacity:1;transform:none}
+
+.reveal-scale{
+  opacity:0;transform:scale(0.9) translateY(14px);
+  transition:opacity 0.6s cubic-bezier(.22,1,.36,1),transform 0.6s cubic-bezier(.22,1,.36,1);
+}
+.reveal-scale.visible{opacity:1;transform:none}
+
+.reveal-left{
+  opacity:0;transform:translateX(-22px);
+  transition:opacity 0.6s cubic-bezier(.22,1,.36,1),transform 0.6s cubic-bezier(.22,1,.36,1);
+}
+.reveal-left.visible{opacity:1;transform:none}
+
+/* Stagger delays */
+.d1{transition-delay:.06s}.d2{transition-delay:.13s}.d3{transition-delay:.20s}
+.d4{transition-delay:.27s}.d5{transition-delay:.34s}.d6{transition-delay:.41s}
+.d7{transition-delay:.48s}.d8{transition-delay:.55s}.d9{transition-delay:.62s}
 </style>
 </head>
 <body>
@@ -309,20 +343,20 @@ footer{
 <!-- PROBLEMA -->
 <div class="problem-section">
   <div style="max-width:1100px;margin:0 auto">
-    <p class="section-label" style="text-align:center">✦ Você ainda faz isso?</p>
-    <h2 class="section-title" style="text-align:center;margin-bottom:40px">Sua agenda <span>não deveria ser assim</span></h2>
+    <p class="section-label reveal" style="text-align:center">✦ Você ainda faz isso?</p>
+    <h2 class="section-title reveal d1" style="text-align:center;margin-bottom:40px">Sua agenda <span>não deveria ser assim</span></h2>
     <div class="problem-grid">
-      <div class="problem-card">
+      <div class="problem-card reveal d2">
         <div class="icon">😩</div>
         <h4>Agendamento pelo WhatsApp</h4>
         <p>Responder "qual horário tem?" 20 vezes por dia enquanto atende cliente.</p>
       </div>
-      <div class="problem-card">
+      <div class="problem-card reveal d3">
         <div class="icon">📋</div>
         <h4>Agenda no caderno ou planilha</h4>
         <p>Risco de conflito de horários, informações perdidas e nenhum histórico das clientes.</p>
       </div>
-      <div class="problem-card">
+      <div class="problem-card reveal d4">
         <div class="icon">💸</div>
         <h4>Faltas sem aviso</h4>
         <p>Cliente some no dia, você perde o horário e fica sem o pagamento da sessão.</p>
@@ -336,52 +370,52 @@ footer{
 <!-- FEATURES -->
 <div id="features" style="padding:96px 5%;background:var(--dark2)">
 <div style="max-width:1100px;margin:0 auto">
-  <p class="section-label">✦ Funcionalidades</p>
-  <h2 class="section-title">Tudo que você precisa<br/><span>num só sistema</span></h2>
-  <p class="section-sub">Desenvolvido do zero para lash artists e profissionais de beleza. Cada detalhe pensado no seu dia a dia.</p>
+  <p class="section-label reveal">✦ Funcionalidades</p>
+  <h2 class="section-title reveal d1">Tudo que você precisa<br/><span>num só sistema</span></h2>
+  <p class="section-sub reveal d2">Desenvolvido do zero para lash artists e profissionais de beleza. Cada detalhe pensado no seu dia a dia.</p>
 
   <div class="features-grid">
-    <div class="feat-card">
+    <div class="feat-card reveal d1">
       <div class="feat-icon">📅</div>
       <h3>Agendamento Online 24h</h3>
       <p>Sua cliente agenda pelo celular a qualquer hora, sem precisar te chamar no WhatsApp. Você recebe a solicitação e aprova.</p>
     </div>
-    <div class="feat-card">
+    <div class="feat-card reveal d2">
       <div class="feat-icon">💬</div>
       <h3>Confirmação via WhatsApp</h3>
       <p>Ao confirmar um agendamento, o sistema abre o WhatsApp com a mensagem pronta pra enviar. Zero digitação.</p>
     </div>
-    <div class="feat-card">
+    <div class="feat-card reveal d3">
       <div class="feat-icon">💳</div>
       <h3>Pix de Sinal Automático</h3>
       <p>QR Code gerado automaticamente na confirmação. A cliente paga o sinal e você elimina as faltas de última hora.</p>
     </div>
-    <div class="feat-card">
+    <div class="feat-card reveal d1">
       <div class="feat-icon">👩‍💼</div>
       <h3>CRM de Clientes</h3>
       <p>Histórico completo de cada cliente: serviços feitos, restrições médicas, alergias, volume favorito e faltas registradas.</p>
     </div>
-    <div class="feat-card">
+    <div class="feat-card reveal d2">
       <div class="feat-icon">📊</div>
       <h3>Financeiro & Estatísticas</h3>
       <p>Faturamento por período, serviços mais vendidos, taxa de faltas e relatório de saldo. Tudo em gráficos claros.</p>
     </div>
-    <div class="feat-card">
+    <div class="feat-card reveal d3">
       <div class="feat-icon">🗂</div>
       <h3>Catálogo Gerenciável</h3>
       <p>Adiciona, edita e desativa serviços com preço, sinal e duração. Seu catálogo online sempre atualizado.</p>
     </div>
-    <div class="feat-card">
+    <div class="feat-card reveal d1">
       <div class="feat-icon">🔒</div>
       <h3>Bloqueio de Agenda</h3>
       <p>Fecha dias ou períodos inteiros com um clique. Feriado, viagem, folga — as clientes não conseguem agendar nessas datas.</p>
     </div>
-    <div class="feat-card">
+    <div class="feat-card reveal d2">
       <div class="feat-icon">📱</div>
       <h3>100% Mobile</h3>
       <p>Site da cliente e painel de gestão funcionam perfeitamente no celular. Gerencie sua agenda de qualquer lugar.</p>
     </div>
-    <div class="feat-card">
+    <div class="feat-card reveal d3">
       <div class="feat-icon">🎨</div>
       <h3>Design Premium</h3>
       <p>Site com identidade visual do seu estúdio — elegante, moderno e que transmite confiança para novas clientes.</p>
@@ -395,19 +429,19 @@ footer{
 <!-- STATS -->
 <div class="stats-band">
   <div class="stats-grid">
-    <div>
+    <div class="reveal-scale d1">
       <div class="stat-num">24h</div>
       <div class="stat-lbl">Agendamento disponível por dia</div>
     </div>
-    <div>
+    <div class="reveal-scale d2">
       <div class="stat-num">&lt;2min</div>
       <div class="stat-lbl">Para a cliente agendar</div>
     </div>
-    <div>
+    <div class="reveal-scale d3">
       <div class="stat-num">0</div>
       <div class="stat-lbl">Mensagens de "qual horário tem?"</div>
     </div>
-    <div>
+    <div class="reveal-scale d4">
       <div class="stat-num">1 dia</div>
       <div class="stat-lbl">Para o sistema estar no ar</div>
     </div>
@@ -419,46 +453,46 @@ footer{
 <!-- COMO FUNCIONA -->
 <div id="como-funciona" class="flow-section">
 <div style="max-width:1100px;margin:0 auto">
-  <p class="section-label" style="text-align:center">✦ Como funciona</p>
-  <h2 class="section-title" style="text-align:center;margin-bottom:12px">Do agendamento à <span>confirmação</span></h2>
-  <p style="text-align:center;color:var(--muted);margin-bottom:52px;font-size:1rem">Fluxo automático, sem trabalho manual.</p>
+  <p class="section-label reveal" style="text-align:center">✦ Como funciona</p>
+  <h2 class="section-title reveal d1" style="text-align:center;margin-bottom:12px">Do agendamento à <span>confirmação</span></h2>
+  <p class="reveal d2" style="text-align:center;color:var(--muted);margin-bottom:52px;font-size:1rem">Fluxo automático, sem trabalho manual.</p>
   <div class="flow-wrap">
-    <div class="flow-item">
+    <div class="flow-item reveal-left d1">
       <div class="flow-dot">📱</div>
       <div class="flow-body">
         <h4>Cliente acessa seu site</h4>
         <p>Navega pelo catálogo de serviços, vê as fotos, preços e duração de cada procedimento.</p>
       </div>
     </div>
-    <div class="flow-item">
+    <div class="flow-item reveal-left d2">
       <div class="flow-dot">📋</div>
       <div class="flow-body">
         <h4>Escolhe serviço, data e horário</h4>
         <p>Seleciona o que quer, vê os dias disponíveis no calendário e finaliza o pedido.</p>
       </div>
     </div>
-    <div class="flow-item">
+    <div class="flow-item reveal-left d3">
       <div class="flow-dot">🔔</div>
       <div class="flow-body">
         <h4>Você recebe no painel</h4>
         <p>O agendamento aparece no seu painel como "Aguardando Aprovação". Vê nome, serviço, data e restrições.</p>
       </div>
     </div>
-    <div class="flow-item">
+    <div class="flow-item reveal-left d4">
       <div class="flow-dot">✅</div>
       <div class="flow-body">
         <h4>Você confirma com um clique</h4>
         <p>Clica em Confirmar → o WhatsApp abre com a mensagem de confirmação pronta. Um toque e enviou.</p>
       </div>
     </div>
-    <div class="flow-item">
+    <div class="flow-item reveal-left d5">
       <div class="flow-dot">💳</div>
       <div class="flow-body">
         <h4>Cliente paga o sinal</h4>
         <p>QR Code Pix gerado automaticamente. A cliente paga na hora e a vaga está garantida.</p>
       </div>
     </div>
-    <div class="flow-item">
+    <div class="flow-item reveal-left d6">
       <div class="flow-dot">🎉</div>
       <div class="flow-body">
         <h4>Atendimento confirmado</h4>
@@ -474,11 +508,11 @@ footer{
 <!-- PRICING -->
 <div id="precos" class="pricing-section">
 <div style="max-width:1100px;margin:0 auto;text-align:center">
-  <p class="section-label">✦ Planos</p>
-  <h2 class="section-title">Preços <span>simples e honestos</span></h2>
-  <p style="color:var(--muted);margin-bottom:32px;font-size:1rem">Primeiro mês grátis em todos os planos. Sem cartão de crédito.</p>
+  <p class="section-label reveal">✦ Planos</p>
+  <h2 class="section-title reveal d1">Preços <span>simples e honestos</span></h2>
+  <p class="reveal d2" style="color:var(--muted);margin-bottom:32px;font-size:1rem">Primeiro mês grátis em todos os planos. Sem cartão de crédito.</p>
 
-  <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:48px">
+  <div class="reveal d3" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:48px">
     <div class="pricing-toggle">
       <button class="toggle-btn active" id="btn-mensal" onclick="setPlano('mensal')">Mensal</button>
       <button class="toggle-btn" id="btn-anual" onclick="setPlano('anual')">Anual <span class="toggle-save">−20%</span></button>
@@ -487,7 +521,7 @@ footer{
 
   <div class="plans-grid">
     <!-- SOLO -->
-    <div class="plan">
+    <div class="plan reveal-scale d1">
       <div class="plan-name">Solo</div>
       <div class="plan-price" id="price-solo-m"><sup>R$</sup>79<span>/mês</span></div>
       <div class="plan-price-annual" id="price-solo-a"><sup>R$</sup>63<span>/mês</span></div>
@@ -507,7 +541,7 @@ footer{
     </div>
 
     <!-- PRO -->
-    <div class="plan featured">
+    <div class="plan featured reveal-scale d2">
       <div class="plan-badge">⭐ Mais popular</div>
       <div class="plan-name">Pro</div>
       <div class="plan-price" id="price-pro-m"><sup>R$</sup>149<span>/mês</span></div>
@@ -528,7 +562,7 @@ footer{
     </div>
 
     <!-- ESTÚDIO -->
-    <div class="plan">
+    <div class="plan reveal-scale d3">
       <div class="plan-name">Estúdio</div>
       <div class="plan-price" id="price-est-m"><sup>R$</sup>299<span>/mês</span></div>
       <div class="plan-price-annual" id="price-est-a"><sup>R$</sup>239<span>/mês</span></div>
@@ -555,34 +589,34 @@ footer{
 <!-- FAQ -->
 <div id="faq" style="padding:96px 5%;background:var(--dark3)">
 <div class="faq-section" style="padding:0">
-  <p class="section-label" style="text-align:center">✦ Dúvidas frequentes</p>
-  <h2 class="section-title" style="text-align:center;margin-bottom:48px">Perguntas <span>frequentes</span></h2>
+  <p class="section-label reveal" style="text-align:center">✦ Dúvidas frequentes</p>
+  <h2 class="section-title reveal d1" style="text-align:center;margin-bottom:48px">Perguntas <span>frequentes</span></h2>
 
-  <div class="faq-item" onclick="toggleFaq(this)">
+  <div class="faq-item reveal d2" onclick="toggleFaq(this)">
     <div class="faq-q">Como funciona o primeiro mês grátis? <span class="faq-icon">+</span></div>
     <div class="faq-a">Você usa o sistema completo por 30 dias sem pagar nada e sem precisar cadastrar cartão. Só após o período gratuito você decide se continua.</div>
   </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
+  <div class="faq-item reveal d3" onclick="toggleFaq(this)">
     <div class="faq-q">Em quanto tempo o sistema fica pronto? <span class="faq-icon">+</span></div>
     <div class="faq-a">Em até 1 dia útil. Configuramos o sistema com os seus serviços, preços e identidade visual e entregamos o link para você começar a usar.</div>
   </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
+  <div class="faq-item reveal d4" onclick="toggleFaq(this)">
     <div class="faq-q">Precisa de conhecimento técnico para usar? <span class="faq-icon">+</span></div>
     <div class="faq-a">Não. O painel foi desenhado para ser simples e intuitivo. Se você consegue usar o WhatsApp, consegue usar o LashOS. E estamos disponíveis para ajudar sempre que precisar.</div>
   </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
+  <div class="faq-item reveal d5" onclick="toggleFaq(this)">
     <div class="faq-q">Posso usar no celular? <span class="faq-icon">+</span></div>
     <div class="faq-a">Sim. Tanto o site da cliente quanto o painel de gestão são 100% responsivos e funcionam perfeitamente no celular.</div>
   </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
+  <div class="faq-item reveal d6" onclick="toggleFaq(this)">
     <div class="faq-q">Posso cancelar a qualquer momento? <span class="faq-icon">+</span></div>
     <div class="faq-a">Sim, sem multa e sem burocracia. Basta nos avisar pelo WhatsApp e encerramos o plano no fim do período vigente.</div>
   </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
+  <div class="faq-item reveal d7" onclick="toggleFaq(this)">
     <div class="faq-q">O sistema é personalizado com a minha marca? <span class="faq-icon">+</span></div>
     <div class="faq-a">Sim. Colocamos o nome, as cores e a identidade do seu estúdio. As clientes vão ver um site que parece completamente seu.</div>
   </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
+  <div class="faq-item reveal d8" onclick="toggleFaq(this)">
     <div class="faq-q">Posso ter um domínio próprio? <span class="faq-icon">+</span></div>
     <div class="faq-a">Sim. Conectamos seu domínio (tipo seuestudio.com.br) ao sistema. O registro de domínio tem um custo extra de aproximadamente R$40/ano no Registro.br.</div>
   </div>
@@ -593,13 +627,15 @@ footer{
 
 <!-- FINAL CTA -->
 <div class="final-cta">
-  <p class="section-label">✦ Bora começar?</p>
-  <h2>Seu estúdio merece<br/><span style="background:linear-gradient(135deg,#f9a8d4,#d8438b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">uma gestão profissional.</span></h2>
-  <p>Primeiro mês grátis. Configuração em 1 dia. Suporte pelo WhatsApp.</p>
-  <a href="https://wa.me/5511988754571?text=Oi!%20Quero%20testar%20o%20LashOS%20gratuitamente%20no%20meu%20est%C3%BAdio%20%F0%9F%92%85" target="_blank" class="btn-primary" style="font-size:1.05rem;padding:17px 38px">
-    💬 Quero testar grátis
-  </a>
-  <p style="margin-top:20px;font-size:0.82rem;color:rgba(255,255,255,0.3)">Sem cartão · Sem compromisso · Resposta em minutos</p>
+  <p class="section-label reveal">✦ Bora começar?</p>
+  <h2 class="reveal d1">Seu estúdio merece<br/><span style="background:linear-gradient(135deg,#f9a8d4,#d8438b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">uma gestão profissional.</span></h2>
+  <p class="reveal d2">Primeiro mês grátis. Configuração em 1 dia. Suporte pelo WhatsApp.</p>
+  <div class="reveal d3">
+    <a href="https://wa.me/5511988754571?text=Oi!%20Quero%20testar%20o%20LashOS%20gratuitamente%20no%20meu%20est%C3%BAdio%20%F0%9F%92%85" target="_blank" class="btn-primary" style="font-size:1.05rem;padding:17px 38px">
+      💬 Quero testar grátis
+    </a>
+    <p style="margin-top:20px;font-size:0.82rem;color:rgba(255,255,255,0.3)">Sem cartão · Sem compromisso · Resposta em minutos</p>
+  </div>
 </div>
 
 <!-- FOOTER -->
@@ -631,6 +667,18 @@ function toggleFaq(el) {
   document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
   if (!isOpen) el.classList.add('open');
 }
+
+// Scroll reveal via IntersectionObserver
+(function(){
+  const io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting) e.target.classList.add('visible');
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -36px 0px' });
+  document.querySelectorAll('.reveal, .reveal-scale, .reveal-left').forEach(function(el){
+    io.observe(el);
+  });
+})();
 </script>
 </body>
 </html>
