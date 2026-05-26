@@ -118,15 +118,36 @@ nav{
 .problem-card p{font-size:0.82rem;color:var(--muted);line-height:1.6}
 
 /* ── FEATURES ── */
-.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .feat-card{
-  background:rgba(255,255,255,0.04);border:1px solid var(--border);
-  border-radius:20px;padding:28px 24px;transition:border-color 0.2s,background 0.2s;
+  background:linear-gradient(145deg,rgba(255,255,255,0.055),rgba(255,255,255,0.02));
+  border:1px solid rgba(255,255,255,0.06);
+  border-top:2px solid rgba(216,67,139,0.22);
+  border-radius:20px;padding:26px 22px;
+  transition:transform 0.25s cubic-bezier(.22,1,.36,1),border-color 0.25s,box-shadow 0.25s;
+  position:relative;overflow:hidden;
 }
-.feat-card:hover{background:rgba(255,255,255,0.06);border-color:rgba(216,67,139,0.3)}
-.feat-icon{font-size:1.8rem;margin-bottom:16px}
-.feat-card h3{font-size:1rem;font-weight:700;margin-bottom:8px}
-.feat-card p{font-size:0.85rem;color:var(--muted);line-height:1.65}
+.feat-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(216,67,139,0.06),transparent);
+  pointer-events:none;
+}
+.feat-card:hover{
+  transform:translateY(-5px);
+  border-color:rgba(216,67,139,0.4);
+  border-top-color:rgba(216,67,139,0.6);
+  box-shadow:0 24px 60px rgba(160,25,94,0.18);
+}
+.feat-icon-wrap{
+  width:48px;height:48px;border-radius:14px;
+  background:linear-gradient(135deg,rgba(216,67,139,0.18),rgba(160,25,94,0.1));
+  border:1px solid rgba(216,67,139,0.28);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.35rem;margin-bottom:18px;
+  box-shadow:0 4px 16px rgba(160,25,94,0.14);
+}
+.feat-card h3{font-size:0.97rem;font-weight:700;margin-bottom:8px;color:rgba(255,255,255,0.92)}
+.feat-card p{font-size:0.83rem;color:var(--muted);line-height:1.68}
 
 /* ── FLOW ── */
 .flow-section{
@@ -370,11 +391,11 @@ footer{
 <div style="max-width:1100px;margin:0 auto;text-align:center">
   <p class="section-label reveal">✦ O sistema</p>
   <h2 class="section-title reveal d1">Veja como fica <span>na prática</span></h2>
-  <p class="section-sub reveal d2" style="margin:0 auto 56px">O site da sua cliente e o painel de gestão — ambos elegantes, rápidos e 100% no celular.</p>
+  <p class="section-sub reveal d2" style="margin:0 auto 56px">Dois lados do mesmo sistema: o site da sua cliente no celular e o painel de gestão no computador.</p>
 
-  <div class="reveal d2" style="position:relative;display:flex;align-items:flex-start;justify-content:center;gap:0">
-    <!-- Browser mockup (desktop) -->
-    <div style="flex:1;max-width:740px;border-radius:14px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.07);position:relative;z-index:1">
+  <div class="reveal d2" style="position:relative;display:flex;align-items:flex-end;justify-content:center;gap:0">
+    <!-- Browser mockup — painel admin -->
+    <div style="flex:1;max-width:800px;border-radius:14px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,0.75),0 0 0 1px rgba(255,255,255,0.07);position:relative;z-index:1">
       <!-- browser bar -->
       <div style="background:#1e1626;padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.06)">
         <div style="display:flex;gap:5px">
@@ -383,30 +404,36 @@ footer{
           <div style="width:10px;height:10px;border-radius:50%;background:#28c840"></div>
         </div>
         <div style="flex:1;background:rgba(255,255,255,0.06);border-radius:6px;height:22px;margin:0 10px;display:flex;align-items:center;padding:0 10px">
-          <span style="color:rgba(255,255,255,0.3);font-size:0.72rem">seuestudio.com.br</span>
+          <span style="color:rgba(255,255,255,0.3);font-size:0.72rem">seuestudio.com.br/gerencia</span>
         </div>
       </div>
-      <!-- screenshot -->
-      <img src="/screenshots/booking-catalog.png" alt="Site da cliente — catálogo de serviços"
+      <!-- screenshot painel admin -->
+      <img src="/screenshots/admin-dash.png" alt="Painel de gestão — agenda e agendamentos"
            style="width:100%;display:block;"/>
     </div>
-    <!-- Phone mockup -->
-    <div style="width:160px;flex-shrink:0;margin-left:-30px;margin-top:40px;z-index:2;position:relative">
-      <div style="background:#1e1626;border-radius:28px;padding:10px;box-shadow:0 24px 64px rgba(0,0,0,0.7),0 0 0 2px rgba(255,255,255,0.08)">
-        <div style="background:#0f0a19;border-radius:8px;height:14px;margin-bottom:8px"></div>
-        <div style="border-radius:14px;overflow:hidden">
+    <!-- Phone mockup — site da cliente -->
+    <div style="width:172px;flex-shrink:0;margin-left:-36px;margin-bottom:20px;z-index:2;position:relative">
+      <div style="background:#1a1230;border-radius:32px;padding:10px 10px 14px;box-shadow:0 30px 80px rgba(0,0,0,0.75),0 0 0 2px rgba(255,255,255,0.1)">
+        <!-- notch -->
+        <div style="background:#0f0a19;border-radius:10px;height:16px;width:60%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center">
+          <div style="width:30px;height:5px;background:#1e1626;border-radius:99px"></div>
+        </div>
+        <div style="border-radius:16px;overflow:hidden">
           <img src="/screenshots/booking-mobile.png" alt="Site da cliente no celular"
                style="width:100%;display:block;"/>
         </div>
-        <div style="background:#0f0a19;border-radius:99px;width:40px;height:5px;margin:8px auto 0"></div>
+        <!-- home indicator -->
+        <div style="background:rgba(255,255,255,0.15);border-radius:99px;width:40px;height:4px;margin:10px auto 0"></div>
       </div>
+      <!-- label below phone -->
+      <div style="text-align:center;margin-top:12px;font-size:0.72rem;color:rgba(255,255,255,0.4);font-weight:600">Site da cliente</div>
     </div>
   </div>
 
   <!-- caption pills -->
-  <div class="reveal d3" style="display:flex;justify-content:center;gap:16px;margin-top:32px;flex-wrap:wrap">
-    <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:999px;padding:6px 16px;font-size:0.8rem;color:var(--muted)">📅 Catálogo com filtros por categoria</span>
-    <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:999px;padding:6px 16px;font-size:0.8rem;color:var(--muted)">📱 100% responsivo no celular</span>
+  <div class="reveal d3" style="display:flex;justify-content:center;gap:12px;margin-top:36px;flex-wrap:wrap">
+    <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:999px;padding:6px 16px;font-size:0.8rem;color:var(--muted)">🖥️ Painel de gestão completo</span>
+    <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:999px;padding:6px 16px;font-size:0.8rem;color:var(--muted)">📱 Site da cliente 100% mobile</span>
     <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:999px;padding:6px 16px;font-size:0.8rem;color:var(--muted)">🎨 Design com a cara do seu estúdio</span>
   </div>
 </div>
@@ -423,47 +450,47 @@ footer{
 
   <div class="features-grid">
     <div class="feat-card reveal d1">
-      <div class="feat-icon">📅</div>
+      <div class="feat-icon-wrap">📅</div>
       <h3>Agendamento Online 24h</h3>
       <p>Sua cliente agenda pelo celular a qualquer hora, sem precisar te chamar no WhatsApp. Você recebe a solicitação e aprova.</p>
     </div>
     <div class="feat-card reveal d2">
-      <div class="feat-icon">💬</div>
+      <div class="feat-icon-wrap">💬</div>
       <h3>Confirmação via WhatsApp</h3>
       <p>Ao confirmar um agendamento, o sistema abre o WhatsApp com a mensagem pronta pra enviar. Zero digitação.</p>
     </div>
     <div class="feat-card reveal d3">
-      <div class="feat-icon">💳</div>
+      <div class="feat-icon-wrap">💳</div>
       <h3>Pix de Sinal Automático</h3>
       <p>QR Code gerado automaticamente na confirmação. A cliente paga o sinal e você elimina as faltas de última hora.</p>
     </div>
     <div class="feat-card reveal d1">
-      <div class="feat-icon">👩‍💼</div>
+      <div class="feat-icon-wrap">👩‍💼</div>
       <h3>CRM de Clientes</h3>
       <p>Histórico completo de cada cliente: serviços feitos, restrições médicas, alergias, volume favorito e faltas registradas.</p>
     </div>
     <div class="feat-card reveal d2">
-      <div class="feat-icon">📊</div>
+      <div class="feat-icon-wrap">📊</div>
       <h3>Financeiro & Estatísticas</h3>
       <p>Faturamento por período, serviços mais vendidos, taxa de faltas e relatório de saldo. Tudo em gráficos claros.</p>
     </div>
     <div class="feat-card reveal d3">
-      <div class="feat-icon">🗂</div>
+      <div class="feat-icon-wrap">🗂</div>
       <h3>Catálogo Gerenciável</h3>
       <p>Adiciona, edita e desativa serviços com preço, sinal e duração. Seu catálogo online sempre atualizado.</p>
     </div>
     <div class="feat-card reveal d1">
-      <div class="feat-icon">🔒</div>
+      <div class="feat-icon-wrap">🔒</div>
       <h3>Bloqueio de Agenda</h3>
       <p>Fecha dias ou períodos inteiros com um clique. Feriado, viagem, folga — as clientes não conseguem agendar nessas datas.</p>
     </div>
     <div class="feat-card reveal d2">
-      <div class="feat-icon">📱</div>
+      <div class="feat-icon-wrap">📱</div>
       <h3>100% Mobile</h3>
       <p>Site da cliente e painel de gestão funcionam perfeitamente no celular. Gerencie sua agenda de qualquer lugar.</p>
     </div>
     <div class="feat-card reveal d3">
-      <div class="feat-icon">🎨</div>
+      <div class="feat-icon-wrap">🎨</div>
       <h3>Design Premium</h3>
       <p>Site com identidade visual do seu estúdio — elegante, moderno e que transmite confiança para novas clientes.</p>
     </div>
