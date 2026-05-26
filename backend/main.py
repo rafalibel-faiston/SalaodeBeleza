@@ -316,6 +316,30 @@ def get_appointment_status(appointment_id: int, db: Session = Depends(get_db)):
 class StatusUpdate(BaseModel):
     status: str
 
+def _generate_pix(fin, apt, deposit_amount: float):
+    """Calls MP to create a Pix payment and writes QR data into fin (caller must commit)."""
+    phone_digits = "".join(filter(str.isdigit, apt.client.phone or ""))
+    payer_email = (
+        f"{phone_digits}@cliente.salaodebeleza.com"
+        if phone_digits
+        else "cliente@salaodebeleza.com"
+    )
+    service_name = (apt.service.name if apt.service else "Serviço")[:50]
+    payment_data = {
+        "transaction_amount": round(float(deposit_amount), 2),
+        "description": f"Sinal – {service_name}",
+        "payment_method_id": "pix",
+        "payer": {"email": payer_email},
+    }
+    result = sdk.payment().create(payment_data)
+    if result.get("status") in (200, 201):
+        resp = result["response"]
+        fin.mp_payment_id = str(resp.get("id", ""))
+        td = resp.get("point_of_interaction", {}).get("transaction_data", {})
+        fin.pix_qr_code_base64 = td.get("qr_code_base64", "")
+        fin.pix_copia_cola = td.get("qr_code", "")
+
+
 @app.patch("/appointments/{appointment_id}/status")
 def update_appointment_status(
     appointment_id: int,
@@ -331,8 +355,56 @@ def update_appointment_status(
     if not apt:
         raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
     apt.status = data.status
+
+    # Auto-generate Pix when confirming (only if deposit > 0 and not already generated)
+    pix_generated = False
+    pix_error = None
+    if data.status == "confirmed" and apt.financial and apt.client:
+        fin = apt.financial
+        deposit = round(fin.total_value - fin.balance_due, 2)
+        if deposit > 0 and not fin.pix_copia_cola:
+            try:
+                _generate_pix(fin, apt, deposit)
+                pix_generated = True
+            except Exception as e:
+                pix_error = str(e)
+
     db.commit()
-    return {"message": "Status atualizado!", "status": apt.status}
+    return {
+        "message": "Status atualizado!",
+        "status": apt.status,
+        "pix_generated": pix_generated,
+        **({"pix_error": pix_error} if pix_error else {}),
+    }
+
+
+@app.post("/appointments/{appointment_id}/gerar-pix/")
+def gerar_pix(
+    appointment_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    """Gera (ou re-gera) o Pix de sinal para um agendamento confirmado."""
+    apt = db.query(models.Appointment).filter(models.Appointment.id == appointment_id).first()
+    if not apt:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    if not apt.financial or not apt.client:
+        raise HTTPException(status_code=400, detail="Agendamento sem registro financeiro ou cliente.")
+    fin = apt.financial
+    deposit = round(fin.total_value - fin.balance_due, 2)
+    if deposit <= 0:
+        raise HTTPException(status_code=400, detail="Este serviço não exige sinal (depósito = R$ 0).")
+    try:
+        _generate_pix(fin, apt, deposit)
+        db.commit()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erro ao gerar Pix no Mercado Pago: {e}")
+    return {
+        "message": "Pix gerado com sucesso!",
+        "mp_payment_id": fin.mp_payment_id,
+        "pix_copia_cola": fin.pix_copia_cola,
+        "pix_qr_code_base64": fin.pix_qr_code_base64,
+    }
 
 @app.post("/appointments/admin/")
 def create_admin_booking(
