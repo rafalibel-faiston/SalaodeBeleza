@@ -95,6 +95,13 @@ def _seed_services(db):
 @app.on_event("startup")
 def run_migrations():
     """Adiciona colunas novas ao banco sem perder dados existentes."""
+    try:
+        _run_migrations_inner()
+    except Exception as e:
+        print(f"[startup] Aviso: migração falhou ({e}) — continuando mesmo assim.")
+
+
+def _run_migrations_inner():
     db_url = os.getenv("DATABASE_URL", "sqlite:///./banco_salao.db")
 
     # Colunas opcionais que podem não existir em bancos antigos
