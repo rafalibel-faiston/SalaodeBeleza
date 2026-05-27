@@ -168,6 +168,42 @@ def _run_migrations_inner():
         db.close()
 
 # ══════════════════════════════════════════════════════════════════════════════
+# HEALTH CHECK
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/health/")
+def health_check(db: Session = Depends(get_db)):
+    db_url = os.getenv("DATABASE_URL", "sqlite:///./banco_salao.db")
+    db_type = "postgresql" if not db_url.startswith("sqlite") else "sqlite"
+    # Máscara: mostra só o host para não expor credenciais
+    try:
+        if db_type == "postgresql":
+            # postgres://user:pass@host:port/db → mostra só host
+            host_part = db_url.split("@")[-1].split("/")[0] if "@" in db_url else "?"
+        else:
+            host_part = db_url.replace("sqlite:///", "")
+    except Exception:
+        host_part = "?"
+
+    try:
+        counts = {
+            "clients":      db.query(models.Client).count(),
+            "appointments": db.query(models.Appointment).count(),
+            "services":     db.query(models.Service).count(),
+        }
+        db_ok = True
+    except Exception as e:
+        counts = {}
+        db_ok = False
+
+    return {
+        "status": "ok" if db_ok else "db_error",
+        "db_type": db_type,
+        "db_host": host_part,
+        "counts": counts,
+    }
+
+# ══════════════════════════════════════════════════════════════════════════════
 # AUTH — LOGIN
 # ══════════════════════════════════════════════════════════════════════════════
 
