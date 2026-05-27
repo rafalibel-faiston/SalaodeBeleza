@@ -125,6 +125,8 @@ def _run_migrations_inner():
         "ALTER TABLE financials ADD COLUMN IF NOT EXISTS mp_payment_id TEXT",
         "ALTER TABLE financials ADD COLUMN IF NOT EXISTS pix_qr_code_base64 TEXT",
         "ALTER TABLE financials ADD COLUMN IF NOT EXISTS pix_copia_cola TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS promo_code TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS discount_amount FLOAT",
     ]
 
     if db_url.startswith("sqlite"):
@@ -137,7 +139,7 @@ def _run_migrations_inner():
             needed = {
                 "clients": [("instagram","TEXT"),("favorite_volume","TEXT"),("sensitivity","TEXT"),("maintenance_frequency","INTEGER"),("no_show_count","INTEGER DEFAULT 0"),("cancellation_count","INTEGER DEFAULT 0"),("is_blocked","INTEGER DEFAULT 0")],
                 "services": [("is_active","INTEGER DEFAULT 1")],
-                "financials": [("refund_amount","REAL"),("refund_reason","TEXT"),("mp_payment_id","TEXT"),("pix_qr_code_base64","TEXT"),("pix_copia_cola","TEXT")],
+                "financials": [("refund_amount","REAL"),("refund_reason","TEXT"),("mp_payment_id","TEXT"),("pix_qr_code_base64","TEXT"),("pix_copia_cola","TEXT"),("promo_code","TEXT"),("discount_amount","REAL")],
             }
             for table, columns in needed.items():
                 existing = _cols(table)
@@ -236,6 +238,7 @@ class BookingRequest(BaseModel):
     is_maintenance: bool = False
     has_henna_allergy: bool = False
     medical_restrictions: Optional[str] = None
+    promo_code: Optional[str] = None
 
 @app.post("/appointments/")
 def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
@@ -264,7 +267,38 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
         )
 
     total_value = service.base_price
-    balance_due = total_value - service.deposit_amount
+    discount_amount = 0.0
+    applied_promo_code = None
+
+    # Valida e aplica promoção
+    if booking.promo_code:
+        from datetime import date as _date
+        promo = db.query(models.Promotion).filter(
+            models.Promotion.code == booking.promo_code.strip().upper(),
+            models.Promotion.is_active == True,
+        ).first()
+        if not promo:
+            raise HTTPException(status_code=400, detail="Cupom inválido ou inativo.")
+        today = _date.today()
+        if promo.valid_from and today < _date.fromisoformat(promo.valid_from):
+            raise HTTPException(status_code=400, detail="Este cupom ainda não está ativo.")
+        if promo.valid_until and today > _date.fromisoformat(promo.valid_until):
+            raise HTTPException(status_code=400, detail="Este cupom está expirado.")
+        if promo.max_uses and promo.uses_count >= promo.max_uses:
+            raise HTTPException(status_code=400, detail="Este cupom atingiu o limite de usos.")
+        if promo.applies_to != "all" and service.category != promo.applies_to:
+            raise HTTPException(status_code=400, detail="Este cupom não se aplica a este serviço.")
+        if promo.discount_type == "percent":
+            discount_amount = round(total_value * promo.discount_value / 100, 2)
+        else:
+            discount_amount = min(promo.discount_value, total_value)
+        promo.uses_count += 1
+        applied_promo_code = promo.code
+
+    total_value = round(total_value - discount_amount, 2)
+    balance_due = round(total_value - service.deposit_amount, 2)
+    if balance_due < 0:
+        balance_due = 0.0
 
     # Cria agendamento como PENDENTE — aguarda confirmação da Giovanna
     appointment = models.Appointment(
@@ -280,10 +314,11 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
 
     db.execute(
         sql_text(
-            "INSERT INTO financials (appointment_id, total_value, deposit_paid, balance_due)"
-            " VALUES (:aid, :tv, :dp, :bd)"
+            "INSERT INTO financials (appointment_id, total_value, deposit_paid, balance_due, promo_code, discount_amount)"
+            " VALUES (:aid, :tv, :dp, :bd, :pc, :da)"
         ),
-        {"aid": appointment.id, "tv": total_value, "dp": 0.0, "bd": balance_due},
+        {"aid": appointment.id, "tv": total_value, "dp": 0.0, "bd": balance_due,
+         "pc": applied_promo_code, "da": discount_amount if discount_amount > 0 else None},
     )
     db.commit()
 
@@ -293,6 +328,8 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
         "service_name": service.name,
         "client_name": client.name,
         "scheduled_at": appointment.scheduled_at.isoformat(),
+        "discount_amount": discount_amount,
+        "total_value": total_value,
     }
 
 @app.get("/appointments/", response_model=list[schemas.AppointmentResponse])
@@ -719,6 +756,115 @@ def minha_conta(phone: str, db: Session = Depends(get_db)):
             }
             for a in apts
         ],
+    }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PROMOÇÕES
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/promotions/", response_model=list[schemas.PromotionResponse])
+def get_promotions(db: Session = Depends(get_db)):
+    """Público — lista promoções ativas para exibir no formulário de agendamento."""
+    from datetime import date as _date
+    today = _date.today().isoformat()
+    return db.query(models.Promotion).filter(
+        models.Promotion.is_active == True,
+        (models.Promotion.valid_until == None) | (models.Promotion.valid_until >= today),
+        (models.Promotion.valid_from  == None) | (models.Promotion.valid_from  <= today),
+    ).all()
+
+@app.get("/promotions/all/", response_model=list[schemas.PromotionResponse])
+def get_all_promotions(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    """Admin — lista todas as promoções incluindo inativas."""
+    return db.query(models.Promotion).order_by(models.Promotion.created_at.desc()).all()
+
+@app.post("/promotions/", response_model=schemas.PromotionResponse)
+def create_promotion(
+    data: schemas.PromotionCreate,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    if data.discount_type not in ("percent", "fixed"):
+        raise HTTPException(status_code=400, detail="discount_type deve ser 'percent' ou 'fixed'.")
+    if data.code:
+        data.code = data.code.strip().upper()
+        if db.query(models.Promotion).filter(models.Promotion.code == data.code).first():
+            raise HTTPException(status_code=409, detail="Já existe uma promoção com este cupom.")
+    promo = models.Promotion(**data.dict())
+    db.add(promo)
+    db.commit()
+    db.refresh(promo)
+    return promo
+
+@app.put("/promotions/{promo_id}/", response_model=schemas.PromotionResponse)
+def update_promotion(
+    promo_id: int,
+    data: schemas.PromotionUpdate,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    promo = db.query(models.Promotion).filter(models.Promotion.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promoção não encontrada.")
+    for field, value in data.dict(exclude_none=True).items():
+        if field == "code" and value:
+            value = value.strip().upper()
+        setattr(promo, field, value)
+    db.commit()
+    db.refresh(promo)
+    return promo
+
+@app.delete("/promotions/{promo_id}/")
+def delete_promotion(
+    promo_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    promo = db.query(models.Promotion).filter(models.Promotion.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promoção não encontrada.")
+    db.delete(promo)
+    db.commit()
+    return {"message": "Promoção removida."}
+
+@app.post("/promotions/validate/")
+def validate_promo(
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """Público — cliente valida cupom antes de submeter o agendamento."""
+    from datetime import date as _date
+    code = (body.get("code") or "").strip().upper()
+    service_id = body.get("service_id")
+    if not code:
+        raise HTTPException(status_code=400, detail="Informe o cupom.")
+    promo = db.query(models.Promotion).filter(
+        models.Promotion.code == code,
+        models.Promotion.is_active == True,
+    ).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Cupom inválido ou inativo.")
+    today = _date.today()
+    if promo.valid_from and today < _date.fromisoformat(promo.valid_from):
+        raise HTTPException(status_code=400, detail="Este cupom ainda não está ativo.")
+    if promo.valid_until and today > _date.fromisoformat(promo.valid_until):
+        raise HTTPException(status_code=400, detail="Este cupom está expirado.")
+    if promo.max_uses and promo.uses_count >= promo.max_uses:
+        raise HTTPException(status_code=400, detail="Este cupom atingiu o limite de usos.")
+    if service_id and promo.applies_to != "all":
+        from sqlalchemy.orm import Session as _S
+        svc = db.query(models.Service).filter(models.Service.id == service_id).first()
+        if svc and svc.category != promo.applies_to:
+            raise HTTPException(status_code=400, detail="Cupom não se aplica a este serviço.")
+    return {
+        "valid": True,
+        "name": promo.name,
+        "discount_type": promo.discount_type,
+        "discount_value": promo.discount_value,
+        "applies_to": promo.applies_to,
     }
 
 # ══════════════════════════════════════════════════════════════════════════════

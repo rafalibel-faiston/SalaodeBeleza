@@ -78,6 +78,9 @@ export default function ClientBooking() {
   const [phoneQuery, setPhoneQuery]     = useState('');
   const [phoneQueryLoading, setPhoneQueryLoading] = useState(false);
   const [phoneQueryError, setPhoneQueryError]     = useState('');
+  const [promoCode, setPromoCode]       = useState('');
+  const [promoStatus, setPromoStatus]   = useState(null); // null | { valid, name, discount_type, discount_value } | 'error'
+  const [promoError, setPromoError]     = useState('');
   const formRef  = useRef(null);
   const storyRef = useRef(null);
 
@@ -101,7 +104,26 @@ export default function ClientBooking() {
     setConfirmedData(null);
     setRejected(false);
     setSvcCategory(null);
+    setPromoCode('');
+    setPromoStatus(null);
+    setPromoError('');
     setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' });
+  };
+
+  const validarCupom = async () => {
+    if (!promoCode.trim()) return;
+    setPromoError('');
+    setPromoStatus(null);
+    try {
+      const r = await api.post('/promotions/validate/', {
+        code: promoCode.trim(),
+        service_id: formData.service_id ? parseInt(formData.service_id) : null,
+      });
+      setPromoStatus(r.data);
+    } catch (err) {
+      setPromoError(err.response?.data?.detail || 'Cupom inválido.');
+      setPromoStatus('error');
+    }
   };
 
   const timeSlots = [];
@@ -191,7 +213,8 @@ export default function ClientBooking() {
     try {
       const r = await api.post('/appointments/', {
         client_name: formData.client_name, client_phone: formData.client_phone,
-        service_id: parseInt(formData.service_id), scheduled_at: scheduledAt.toISOString()
+        service_id: parseInt(formData.service_id), scheduled_at: scheduledAt.toISOString(),
+        promo_code: promoStatus?.valid ? promoCode.trim() : null,
       });
       saveSession(r.data.appointment_id, formData);
       setPendingId(r.data.appointment_id);
@@ -842,6 +865,33 @@ export default function ClientBooking() {
               {timeSlots.map(t => <option key={t} value={t}>{t.replace(':','h')}</option>)}
             </select>
           </div>
+          {/* Cupom de desconto */}
+          <div className="form-group">
+            <label>Cupom de desconto <span style={{ fontWeight:400, color:'rgba(255,255,255,0.4)', fontSize:'0.8rem' }}>(opcional)</span></label>
+            <div style={{ display:'flex', gap:'8px' }}>
+              <input
+                type="text"
+                value={promoCode}
+                onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoStatus(null); setPromoError(''); }}
+                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), validarCupom())}
+                placeholder="CUPOM"
+                style={{ flex:1, textTransform:'uppercase', letterSpacing:'1px' }}
+              />
+              <button type="button" onClick={validarCupom}
+                style={{ padding:'0 18px', background:'rgba(255,255,255,0.12)', border:'1px solid rgba(255,255,255,0.2)', borderRadius:'12px', color:'#fff', fontWeight:'700', fontSize:'0.85rem', cursor:'pointer', whiteSpace:'nowrap' }}>
+                Aplicar
+              </button>
+            </div>
+            {promoStatus?.valid && (
+              <p style={{ marginTop:'8px', fontSize:'0.82rem', color:'#86efac', fontWeight:'600' }}>
+                ✅ {promoStatus.name} — {promoStatus.discount_type === 'percent' ? `${promoStatus.discount_value}% de desconto` : `R$ ${promoStatus.discount_value.toFixed(2)} de desconto`}
+              </p>
+            )}
+            {promoError && (
+              <p style={{ marginTop:'8px', fontSize:'0.82rem', color:'#fca5a5' }}>❌ {promoError}</p>
+            )}
+          </div>
+
           <motion.button type="submit" className="btn-primary" disabled={loading}
             whileHover={!loading ? { scale:1.02, y:-2 } : {}}
             whileTap={!loading ? { scale:0.98 } : {}}>

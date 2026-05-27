@@ -81,6 +81,37 @@ class BlockedSlotResponse(BlockedSlotCreate):
     class Config:
         from_attributes = True
 
+# --- SCHEMAS PARA PROMOÇÕES ---
+class PromotionCreate(BaseModel):
+    name: str
+    code: Optional[str] = None
+    discount_type: str        # "percent" | "fixed"
+    discount_value: float
+    applies_to: str = "all"   # "all" | "cilios" | "sobrancelha" | "remocao"
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: bool = True
+    max_uses: Optional[int] = None
+
+class PromotionUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    applies_to: Optional[str] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: Optional[bool] = None
+    max_uses: Optional[int] = None
+
+class PromotionResponse(PromotionCreate):
+    id: int
+    uses_count: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # --- SCHEMAS PARA AGENDAMENTOS ---
 class AppointmentBase(BaseModel):
     client_id: int

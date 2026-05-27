@@ -1424,6 +1424,215 @@ function FinanceiroTab({ stats }) {
   );
 }
 
+// ─── ABA: PROMOÇÕES ──────────────────────────────────────────────────────────
+
+function PromocoesTab() {
+  const [promos, setPromos]       = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [editando, setEditando]   = useState(null); // null | 'new' | promo object
+  const [form, setForm]           = useState({
+    name:'', code:'', discount_type:'percent', discount_value:'',
+    applies_to:'all', valid_from:'', valid_until:'', is_active:true, max_uses:''
+  });
+
+  const fetchPromos = () => {
+    setLoading(true);
+    api.get('/promotions/all/').then(r => setPromos(r.data)).finally(() => setLoading(false));
+  };
+  useEffect(fetchPromos, []);
+
+  const abrirNovo = () => {
+    setForm({ name:'', code:'', discount_type:'percent', discount_value:'', applies_to:'all', valid_from:'', valid_until:'', is_active:true, max_uses:'' });
+    setEditando('new');
+  };
+
+  const abrirEditar = (p) => {
+    setForm({
+      name: p.name, code: p.code || '', discount_type: p.discount_type,
+      discount_value: String(p.discount_value), applies_to: p.applies_to,
+      valid_from: p.valid_from || '', valid_until: p.valid_until || '',
+      is_active: p.is_active, max_uses: p.max_uses != null ? String(p.max_uses) : '',
+    });
+    setEditando(p);
+  };
+
+  const salvar = async () => {
+    if (!form.name || !form.discount_value) { alert('Preencha nome e desconto.'); return; }
+    const payload = {
+      ...form,
+      discount_value: parseFloat(form.discount_value),
+      max_uses: form.max_uses ? parseInt(form.max_uses) : null,
+      code: form.code.trim().toUpperCase() || null,
+      valid_from:  form.valid_from  || null,
+      valid_until: form.valid_until || null,
+    };
+    try {
+      if (editando === 'new') {
+        await api.post('/promotions/', payload);
+      } else {
+        await api.put(`/promotions/${editando.id}/`, payload);
+      }
+      setEditando(null);
+      fetchPromos();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Erro ao salvar.');
+    }
+  };
+
+  const deletar = async (id) => {
+    if (!confirm('Remover esta promoção?')) return;
+    await api.delete(`/promotions/${id}/`);
+    fetchPromos();
+  };
+
+  const toggleAtivo = async (p) => {
+    await api.put(`/promotions/${p.id}/`, { is_active: !p.is_active });
+    fetchPromos();
+  };
+
+  const catLabel = { all:'Todos', cilios:'Cílios', sobrancelha:'Sobrancelhas', remocao:'Remoção' };
+
+  const inputStyle = { width:'100%', padding:'10px 14px', borderRadius:'10px', border:'1px solid #e5e7eb', fontSize:'0.88rem', outline:'none', boxSizing:'border-box' };
+  const labelStyle = { fontSize:'0.78rem', fontWeight:'700', color:'#6b7280', marginBottom:'4px', display:'block' };
+
+  if (editando !== null) {
+    return (
+      <div style={{ maxWidth:'560px', margin:'0 auto', background:'#fff', borderRadius:'20px', padding:'28px', boxShadow:'0 4px 24px rgba(0,0,0,0.08)' }}>
+        <h3 style={{ margin:'0 0 24px', fontSize:'1.1rem', fontWeight:'800' }}>
+          {editando === 'new' ? '➕ Nova Promoção' : '✏️ Editar Promoção'}
+        </h3>
+        <div style={{ display:'grid', gap:'16px' }}>
+          <div>
+            <label style={labelStyle}>Nome da promoção *</label>
+            <input style={inputStyle} value={form.name} onChange={e => setForm(p=>({...p,name:e.target.value}))} placeholder="Ex: Junho -10% Brow" />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={labelStyle}>Tipo de desconto *</label>
+              <select style={inputStyle} value={form.discount_type} onChange={e => setForm(p=>({...p,discount_type:e.target.value}))}>
+                <option value="percent">Porcentagem (%)</option>
+                <option value="fixed">Valor fixo (R$)</option>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Valor do desconto *</label>
+              <input style={inputStyle} type="number" min="0" value={form.discount_value} onChange={e => setForm(p=>({...p,discount_value:e.target.value}))} placeholder={form.discount_type === 'percent' ? '10' : '15.00'} />
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={labelStyle}>Cupom (opcional)</label>
+              <input style={inputStyle} value={form.code} onChange={e => setForm(p=>({...p,code:e.target.value.toUpperCase()}))} placeholder="JUNHO10" />
+            </div>
+            <div>
+              <label style={labelStyle}>Aplica em</label>
+              <select style={inputStyle} value={form.applies_to} onChange={e => setForm(p=>({...p,applies_to:e.target.value}))}>
+                <option value="all">Todos os serviços</option>
+                <option value="cilios">Cílios</option>
+                <option value="sobrancelha">Sobrancelhas</option>
+                <option value="remocao">Remoção</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={labelStyle}>Válido de</label>
+              <input style={inputStyle} type="date" value={form.valid_from} onChange={e => setForm(p=>({...p,valid_from:e.target.value}))} />
+            </div>
+            <div>
+              <label style={labelStyle}>Válido até</label>
+              <input style={inputStyle} type="date" value={form.valid_until} onChange={e => setForm(p=>({...p,valid_until:e.target.value}))} />
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={labelStyle}>Limite de usos (vazio = ilimitado)</label>
+              <input style={inputStyle} type="number" min="1" value={form.max_uses} onChange={e => setForm(p=>({...p,max_uses:e.target.value}))} placeholder="Ilimitado" />
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', paddingTop:'22px' }}>
+              <input type="checkbox" id="is_active" checked={form.is_active} onChange={e => setForm(p=>({...p,is_active:e.target.checked}))} style={{ width:'18px', height:'18px', cursor:'pointer' }} />
+              <label htmlFor="is_active" style={{ fontSize:'0.88rem', fontWeight:'600', cursor:'pointer' }}>Ativa</label>
+            </div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:'10px', marginTop:'24px' }}>
+          <button onClick={salvar} style={{ flex:1, padding:'12px', background:'#d8438b', color:'#fff', border:'none', borderRadius:'12px', fontWeight:'800', fontSize:'0.9rem', cursor:'pointer' }}>
+            Salvar
+          </button>
+          <button onClick={() => setEditando(null)} style={{ padding:'12px 20px', background:'#f3f4f6', color:'#374151', border:'none', borderRadius:'12px', fontWeight:'700', cursor:'pointer' }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:'1.3rem', fontWeight:'800' }}>🏷️ Promoções</h2>
+          <p style={{ margin:'4px 0 0', fontSize:'0.83rem', color:'#6b7280' }}>Crie descontos automáticos ou cupons para suas clientes</p>
+        </div>
+        <button onClick={abrirNovo} style={{ padding:'10px 20px', background:'#d8438b', color:'#fff', border:'none', borderRadius:'12px', fontWeight:'800', fontSize:'0.88rem', cursor:'pointer' }}>
+          + Nova Promoção
+        </button>
+      </div>
+
+      {loading ? (
+        <p style={{ color:'#9ca3af', textAlign:'center', padding:'40px' }}>Carregando...</p>
+      ) : promos.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'60px 20px', color:'#9ca3af' }}>
+          <p style={{ fontSize:'2.5rem', marginBottom:'12px' }}>🏷️</p>
+          <p style={{ fontWeight:'700', color:'#374151' }}>Nenhuma promoção cadastrada</p>
+          <p style={{ fontSize:'0.85rem' }}>Crie sua primeira promoção clicando no botão acima.</p>
+        </div>
+      ) : (
+        <div style={{ display:'grid', gap:'12px' }}>
+          {promos.map(p => {
+            const isExpired = p.valid_until && p.valid_until < new Date().toISOString().split('T')[0];
+            const isFull    = p.max_uses && p.uses_count >= p.max_uses;
+            return (
+              <div key={p.id} style={{ background:'#fff', borderRadius:'16px', padding:'18px 20px', boxShadow:'0 2px 8px rgba(0,0,0,0.06)', border:`1.5px solid ${!p.is_active || isExpired || isFull ? '#e5e7eb' : '#fce7f3'}`, opacity: !p.is_active || isExpired || isFull ? 0.65 : 1 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px' }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'6px' }}>
+                      <span style={{ fontWeight:'800', fontSize:'0.95rem' }}>{p.name}</span>
+                      {p.code && <span style={{ background:'#fce7f3', color:'#d8438b', padding:'2px 10px', borderRadius:'999px', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'1px' }}>{p.code}</span>}
+                      {!p.is_active && <span style={{ background:'#f3f4f6', color:'#9ca3af', padding:'2px 8px', borderRadius:'999px', fontSize:'0.72rem', fontWeight:'700' }}>INATIVA</span>}
+                      {isExpired  && <span style={{ background:'#fee2e2', color:'#dc2626', padding:'2px 8px', borderRadius:'999px', fontSize:'0.72rem', fontWeight:'700' }}>EXPIRADA</span>}
+                      {isFull     && <span style={{ background:'#fef3c7', color:'#92400e', padding:'2px 8px', borderRadius:'999px', fontSize:'0.72rem', fontWeight:'700' }}>ESGOTADA</span>}
+                    </div>
+                    <div style={{ fontSize:'0.82rem', color:'#6b7280', display:'flex', gap:'16px', flexWrap:'wrap' }}>
+                      <span>💸 {p.discount_type === 'percent' ? `${p.discount_value}% off` : `R$ ${p.discount_value.toFixed(2)} off`}</span>
+                      <span>📦 {catLabel[p.applies_to] || p.applies_to}</span>
+                      {p.valid_from  && <span>De: {new Date(p.valid_from +'T12:00').toLocaleDateString('pt-BR')}</span>}
+                      {p.valid_until && <span>Até: {new Date(p.valid_until+'T12:00').toLocaleDateString('pt-BR')}</span>}
+                      {p.max_uses    && <span>Usos: {p.uses_count}/{p.max_uses}</span>}
+                      {!p.max_uses   && <span>Usos: {p.uses_count}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:'8px', flexShrink:0 }}>
+                    <button onClick={() => toggleAtivo(p)} style={{ padding:'7px 12px', background: p.is_active ? '#dcfce7' : '#f3f4f6', color: p.is_active ? '#15803d' : '#6b7280', border:'none', borderRadius:'8px', fontWeight:'700', fontSize:'0.78rem', cursor:'pointer' }}>
+                      {p.is_active ? '✅ Ativa' : '⏸ Inativa'}
+                    </button>
+                    <button onClick={() => abrirEditar(p)} style={{ padding:'7px 12px', background:'#eff6ff', color:'#1d4ed8', border:'none', borderRadius:'8px', fontWeight:'700', fontSize:'0.78rem', cursor:'pointer' }}>
+                      ✏️
+                    </button>
+                    <button onClick={() => deletar(p.id)} style={{ padding:'7px 12px', background:'#fee2e2', color:'#dc2626', border:'none', borderRadius:'8px', fontWeight:'700', fontSize:'0.78rem', cursor:'pointer' }}>
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ABA: CONFIGURAÇÕES ──────────────────────────────────────────────────────
 
 function agruparBloqueios(slots) {
@@ -1547,6 +1756,7 @@ const TABS = [
   { id: 'catalogo',   label: 'CATÁLOGO',      icon: '📔' },
   { id: 'stats',      label: 'ESTATÍSTICAS',  icon: '📊' },
   { id: 'financeiro', label: 'FINANCEIRO',    icon: '💰' },
+  { id: 'promocoes',  label: 'PROMOÇÕES',     icon: '🏷️' },
   { id: 'config',     label: 'CONFIGURAÇÕES', icon: '⚙️' },
 ];
 
@@ -1797,6 +2007,7 @@ export default function AdminDashboard() {
         {activeTab === 'catalogo'   && <CatalogoTab services={services} onRefresh={fetchAll} />}
         {activeTab === 'stats'      && <EstatisticasTab stats={stats} appointments={appointments} />}
         {activeTab === 'financeiro' && <FinanceiroTab stats={stats} />}
+        {activeTab === 'promocoes'  && <PromocoesTab />}
         {activeTab === 'config'     && <ConfiguracoesTab blockedSlots={blockedSlots} onRefresh={fetchAll} />}
       </div>
     </div>

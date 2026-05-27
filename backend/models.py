@@ -62,7 +62,21 @@ class BlockedSlot(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
-class Financial(Base):
+class Promotion(Base):
+    __tablename__ = "promotions"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    name           = Column(String, nullable=False)                 # Ex: "Junho -10% Brow"
+    code           = Column(String, nullable=True, unique=True)     # Cupom opcional
+    discount_type  = Column(String, nullable=False)                 # "percent" | "fixed"
+    discount_value = Column(Float, nullable=False)
+    applies_to     = Column(String, default="all")                  # "all" | "cilios" | "sobrancelha" | "remocao"
+    valid_from     = Column(String, nullable=True)                  # YYYY-MM-DD
+    valid_until    = Column(String, nullable=True)                  # YYYY-MM-DD
+    is_active      = Column(Boolean, default=True)
+    max_uses       = Column(Integer, nullable=True)                 # null = ilimitado
+    uses_count     = Column(Integer, default=0)
+    created_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     __tablename__ = "financials"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -78,5 +92,7 @@ class Financial(Base):
     mp_payment_id = Column(String, nullable=True)
     pix_qr_code_base64 = Column(Text, nullable=True)
     pix_copia_cola = Column(Text, nullable=True)
+    promo_code = Column(String, nullable=True)
+    discount_amount = Column(Float, nullable=True)
 
     appointment = relationship("Appointment", back_populates="financial")
