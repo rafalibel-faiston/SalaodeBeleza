@@ -145,7 +145,7 @@ export default function ClientBooking() {
       .finally(() => setSessionChecked(true));
   }, []);
 
-  // ── Polling: verifica status a cada 5s ───────────────────
+  // ── Polling 1: aguarda admin confirmar ──────────────────
   useEffect(() => {
     if (!pendingId || confirmedData || rejected) return;
     const interval = setInterval(async () => {
@@ -163,6 +163,21 @@ export default function ClientBooking() {
     }, 5000);
     return () => clearInterval(interval);
   }, [pendingId, confirmedData, rejected]);
+
+  // ── Polling 2: aguarda pagamento Pix ser aprovado ────────
+  useEffect(() => {
+    if (!confirmedData || confirmedData.status === 'scheduled') return;
+    const interval = setInterval(async () => {
+      try {
+        const r = await api.get(`/appointments/${confirmedData.id}/status`);
+        if (r.data.status === 'scheduled') {
+          setConfirmedData(r.data);
+          clearInterval(interval);
+        }
+      } catch {}
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [confirmedData]);
 
   const handleChange  = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -403,20 +418,51 @@ export default function ClientBooking() {
     const dateStr    = bookedDate.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' });
     const timeStr    = `${String(bookedDate.getHours()).padStart(2,'0')}h${String(bookedDate.getMinutes()).padStart(2,'0')}`;
     const hasPix     = confirmedData.pix_qr_code_base64 && confirmedData.pix_copia_cola;
+    const isPaid     = confirmedData.status === 'scheduled';
 
+    const infoCard = (
+      <div style={{ background:'var(--pink-light)', borderRadius:'16px', padding:'20px 24px', marginBottom:'28px', textAlign:'left', lineHeight:'2', border:'1px solid var(--pink-mid)' }}>
+        <p>💅 <strong>{confirmedData.service_name}</strong></p>
+        <p>📅 {dateStr} às {timeStr}</p>
+        <p>📍 Rua Ari Carneiro Fernandes, 155</p>
+        <p>💰 Total: <strong>R$ {confirmedData.total_value?.toFixed(2).replace('.',',')}</strong>
+          {confirmedData.deposit_amount > 0 && ` · Sinal: R$ ${confirmedData.deposit_amount?.toFixed(2).replace('.',',')}`}</p>
+      </div>
+    );
+
+    // Vaga garantida — sinal pago via Pix
+    if (isPaid) {
+      return (
+        <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
+          initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
+          <motion.div style={{ fontSize:'3.5rem', marginBottom:'8px' }}
+            animate={{ scale:[1,1.15,1] }} transition={{ duration:0.5 }}>🎉</motion.div>
+          <h2 className="title">Vaga <span>Garantida!</span></h2>
+          <p style={{ color:'var(--muted)', marginBottom:'28px' }}>
+            Sinal recebido! Até lá, {confirmedData.client_name?.split(' ')[0]}! 💅
+          </p>
+          {infoCard}
+          <div style={{ background:'rgba(16,185,129,0.08)', border:'1.5px solid rgba(16,185,129,0.3)', borderRadius:'16px', padding:'16px 20px', marginBottom:'28px', display:'flex', alignItems:'center', gap:'14px' }}>
+            <span style={{ fontSize:'1.8rem' }}>✅</span>
+            <p style={{ margin:0, fontSize:'0.88rem', color:'#065f46', fontWeight:600 }}>
+              Sinal confirmado pelo Mercado Pago. Sua vaga está reservada!
+            </p>
+          </div>
+          <button className="btn-primary" style={{ background:'#555' }} onClick={resetBooking}>
+            Fazer Novo Agendamento
+          </button>
+        </motion.div>
+      );
+    }
+
+    // Aguardando pagamento do sinal
     return (
       <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
         initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
         <div style={{ fontSize:'3rem', marginBottom:'8px' }}>✅</div>
         <h2 className="title">Horário <span>Confirmado!</span></h2>
         <p style={{ color:'var(--muted)', marginBottom:'28px' }}>Arrasou, {confirmedData.client_name?.split(' ')[0]}! 💅</p>
-        <div style={{ background:'var(--pink-light)', borderRadius:'16px', padding:'20px 24px', marginBottom:'28px', textAlign:'left', lineHeight:'2', border:'1px solid var(--pink-mid)' }}>
-          <p>💅 <strong>{confirmedData.service_name}</strong></p>
-          <p>📅 {dateStr} às {timeStr}</p>
-          <p>📍 Rua Ari Carneiro Fernandes, 155</p>
-          <p>💰 Total: <strong>R$ {confirmedData.total_value?.toFixed(2).replace('.',',')}</strong>
-            {confirmedData.deposit_amount > 0 && ` · Sinal: R$ ${confirmedData.deposit_amount?.toFixed(2).replace('.',',')}`}</p>
-        </div>
+        {infoCard}
         {hasPix && (
           <div style={{ marginBottom:'20px' }}>
             <p style={{ fontWeight:'700', marginBottom:'12px' }}>Pague o sinal para garantir sua vaga:</p>
@@ -424,10 +470,12 @@ export default function ClientBooking() {
             <p style={{ marginBottom:'8px', fontWeight:'600', marginTop:'16px', fontSize:'0.9rem' }}>Pix Copia e Cola:</p>
             <textarea readOnly value={confirmedData.pix_copia_cola} className="pix-textarea" />
             <button className="btn-primary" onClick={() => navigator.clipboard.writeText(confirmedData.pix_copia_cola)}>Copiar Código Pix</button>
+            <p style={{ fontSize:'0.75rem', color:'var(--muted)', marginTop:'12px' }}>
+              Aguardando confirmação do pagamento...
+            </p>
           </div>
         )}
-        <button className="btn-primary" style={{ background:'#555', marginTop:'10px' }}
-          onClick={resetBooking}>
+        <button className="btn-primary" style={{ background:'#555', marginTop:'10px' }} onClick={resetBooking}>
           Fazer Novo Agendamento
         </button>
       </motion.div>

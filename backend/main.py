@@ -1,6 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text as sql_text
 from pydantic import BaseModel
@@ -20,7 +23,10 @@ from database import engine, SessionLocal
 # Cria as tabelas (novas tabelas apenas — não altera existentes)
 models.Base.metadata.create_all(bind=engine)
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="API Salão de Cílios - Giovanna Soares")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(
@@ -167,11 +173,8 @@ class LoginRequest(BaseModel):
     password: str
 
 @app.post("/auth/login/")
-def login(data: LoginRequest):
-    """
-    Autentica a Giovanna. Retorna JWT válido por JWT_EXPIRE_HOURS horas.
-    Configure ADMIN_PASSWORD e JWT_SECRET nas variáveis de ambiente do Render.
-    """
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginRequest):
     if not auth.verificar_senha(data.password):
         raise HTTPException(status_code=401, detail="Senha incorreta.")
     token = auth.criar_token()
@@ -775,6 +778,11 @@ async def mp_webhook(request: Request, db: Session = Depends(get_db)):
                     if fin:
                         fin.deposit_paid = amount
                         fin.balance_due  = max(fin.total_value - amount, 0)
+                        apt = db.query(models.Appointment).filter(
+                            models.Appointment.id == fin.appointment_id
+                        ).first()
+                        if apt and apt.status == "confirmed":
+                            apt.status = "scheduled"
                         db.commit()
         except Exception:
             pass  # Log em produção; não deve derrubar o webhook
