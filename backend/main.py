@@ -62,6 +62,24 @@ def verify_admin(credentials: HTTPAuthorizationCredentials = Depends(_http_beare
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    """Diagnóstico público: confirma banco conectado e mostra contagens."""
+    db_url = os.getenv("DATABASE_URL", "sqlite")
+    db_type = "postgresql" if "postgresql" in db_url or "postgres" in db_url else "sqlite"
+    try:
+        clients_count     = db.query(models.Client).count()
+        appointments_count = db.query(models.Appointment).count()
+        return {
+            "status": "ok",
+            "db_type": db_type,
+            "clients": clients_count,
+            "appointments": appointments_count,
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
 # ─── SEED DE SERVIÇOS ─────────────────────────────────────────────────────────
 _CATALOG = [
     {"name": "Volume Brasileiro (Fio Y) - Aplicação",                        "category": "cilios",      "base_price": 115.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
