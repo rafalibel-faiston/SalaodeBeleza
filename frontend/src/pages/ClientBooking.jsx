@@ -490,36 +490,7 @@ export default function ClientBooking() {
       );
     }
 
-    // Aguardando envio do Pix pela Giovanna (confirmed, sem QR ainda)
-    if (!hasPix) {
-      return (
-        <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
-          initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
-          <motion.div style={{ fontSize:'3rem', marginBottom:'8px' }}
-            animate={{ scale:[1,1.08,1] }} transition={{ duration:2.2, repeat:Infinity, ease:'easeInOut' }}>
-            ✅
-          </motion.div>
-          <h2 className="title">Horário <span>Confirmado!</span></h2>
-          <p style={{ color:'var(--muted)', marginBottom:'28px' }}>Arrasou, {confirmedData.client_name?.split(' ')[0]}! 💅</p>
-          {infoCard}
-          <div style={{ background:'rgba(216,67,139,0.07)', border:'1.5px solid rgba(216,67,139,0.25)', borderRadius:'16px', padding:'18px 22px', marginBottom:'28px', display:'flex', alignItems:'center', gap:'14px', textAlign:'left' }}>
-            <motion.span style={{ fontSize:'1.8rem', flexShrink:0 }}
-              animate={{ rotate:[0,15,-15,0] }} transition={{ duration:2.5, repeat:Infinity, ease:'easeInOut' }}>
-              ⏳
-            </motion.span>
-            <p style={{ margin:0, fontSize:'0.88rem', color:'var(--text)', lineHeight:1.6 }}>
-              A Giovanna está preparando o código Pix para o sinal...<br />
-              <span style={{ color:'var(--muted)', fontWeight:400, fontSize:'0.82rem' }}>Você receberá uma notificação assim que estiver pronto.</span>
-            </p>
-          </div>
-          <button className="btn-primary" style={{ background:'#555', marginTop:'10px' }} onClick={resetBooking}>
-            Fazer Novo Agendamento
-          </button>
-        </motion.div>
-      );
-    }
-
-    // aguardando_pagamento — Pix enviado, cliente ainda não pagou
+    // aguardando_pagamento — Pix gerado, cliente ainda não pagou
     return (
       <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
         initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>

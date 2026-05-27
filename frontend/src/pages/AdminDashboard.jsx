@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../api/client';
 import AdminLogin from './AdminLogin';
 import {
@@ -61,6 +61,11 @@ const msgLembrete = (apt) =>
 const msgPix = (apt) => {
   const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
   return `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento do sinal de ${fmt(sinal)} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${apt.financial?.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
+};
+
+const msgPagamentoConfirmado = (apt) => {
+  const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
+  return `Oi, ${apt.client?.name?.split(' ')[0]}! 🎉\n\nSeu pagamento foi confirmado e sua vaga está garantida!\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Rua Ari Carneiro Fernandes 155\n💅 ${apt.service?.name}\n✅ Sinal recebido: ${fmt(sinal)}\n\nTe espero lá! 💕✨`;
 };
 
 const CORES = ['#d8438b', '#128C7E', '#f59e0b', '#6366f1', '#10b981', '#ef4444'];
@@ -350,27 +355,19 @@ function AgendaTab({ appointments, onRefresh }) {
     .filter(a => new Date(a.scheduled_at) >= now && !['rejected', 'cancelled', 'no_show'].includes(a.status))
     .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
 
-  const confirmar = async (apt) => {
-    if (!window.confirm(`Confirmar agendamento de ${apt.client?.name}?`)) return;
-    try {
-      await api.patch(`/appointments/${apt.id}/status`, { status: 'confirmed' });
-      onRefresh();
-      abrirWpp(apt.client?.phone, msgConfirmacao(apt));
-    } catch { alert('Erro ao confirmar.'); }
-  };
-
-  const enviarPix = async (apt) => {
+  const aceitar = async (apt) => {
+    if (!window.confirm(`Aceitar agendamento de ${apt.client?.name} e gerar Pix?`)) return;
     try {
       const { data } = await api.patch(`/appointments/${apt.id}/status`, { status: 'aguardando_pagamento' });
       onRefresh();
       if (data.pix_copia_cola) {
         const sinal = apt.financial?.total_value - apt.financial?.balance_due || 0;
-        const pixMsg = `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento ${sinal > 0 ? `do sinal de ${fmt(sinal)}` : `de ${fmt(apt.financial?.total_value)}`} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${data.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
+        const pixMsg = `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário foi confirmado! Para garantir sua vaga, faça o pagamento ${sinal > 0 ? `do sinal de ${fmt(sinal)}` : `de ${fmt(apt.financial?.total_value)}`} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${data.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
         abrirWpp(apt.client?.phone, pixMsg);
       } else {
         alert(data.pix_error ? `Erro ao gerar Pix: ${data.pix_error}` : 'Pix não pôde ser gerado. Verifique as configurações do Mercado Pago.');
       }
-    } catch (e) { alert(e.response?.data?.detail || 'Erro ao gerar Pix.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao aceitar agendamento.'); }
   };
 
   const recusar = async (apt) => {
@@ -417,7 +414,7 @@ function AgendaTab({ appointments, onRefresh }) {
       }).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
     : [];
 
-  const confirmedDayApts = dayApts.filter(a => ['confirmed', 'scheduled'].includes(a.status));
+  const confirmedDayApts = dayApts.filter(a => ['confirmed', 'aguardando_pagamento', 'scheduled'].includes(a.status));
 
   const filteredList = activeFilter === 'pendentes'
     ? pendentes
@@ -505,10 +502,7 @@ function AgendaTab({ appointments, onRefresh }) {
           {apt.status !== 'no_show' && apt.status !== 'pending' && reagendando !== apt.id && (
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
               {apt.status === 'confirmed' && (
-                <>
-                  <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
-                  <BtnWpp label="💸 Enviar Pix" color="#6366f1" onClick={() => enviarPix(apt)} />
-                </>
+                <BtnWpp label="💸 Gerar Pix" color="#6366f1" onClick={() => aceitar(apt)} />
               )}
               {apt.status === 'aguardando_pagamento' && apt.financial?.pix_copia_cola && (
                 <BtnWpp label="💸 Reenviar Pix" color="#6366f1" onClick={() => abrirWpp(apt.client?.phone, msgPix(apt))} />
@@ -610,7 +604,7 @@ function AgendaTab({ appointments, onRefresh }) {
       )}
 
       <div style={{ display: 'flex', gap: '8px' }}>
-        <button onClick={() => confirmar(apt)} className="btn-tactile"
+        <button onClick={() => aceitar(apt)} className="btn-tactile"
           style={{
             flex: 1, padding: '11px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff',
             border: 'none', borderRadius: '12px',
@@ -622,7 +616,7 @@ function AgendaTab({ appointments, onRefresh }) {
           onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 18px rgba(16,185,129,0.5)'; }}
           onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.35)'; }}
         >
-          ✓ Confirmar
+          ✓ Aceitar
         </button>
         <button onClick={() => recusar(apt)} className="btn-tactile"
           style={{
@@ -1819,6 +1813,12 @@ export default function AdminDashboard() {
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [currentTime, setCurrentTime]   = useState(() => new Date().toLocaleTimeString('pt-BR'));
+  const [paymentAlerts, setPaymentAlerts] = useState([]);
+
+  const prevAptStatusRef = useRef(new Map()); // id → status snapshot
+  const notifiedRef      = useRef(new Set()); // ids já notificados
+
+  const dismissAlert = (id) => setPaymentAlerts(prev => prev.filter(a => a.id !== id));
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString('pt-BR')), 1000);
@@ -1841,6 +1841,15 @@ export default function AdminDashboard() {
         api.get('/blocked-slots/'),
         api.get('/clients/'),
       ]);
+
+      // Detecta pagamentos confirmados comparando com snapshot anterior
+      const newlyPaid = a.data.filter(apt => {
+        const prev = prevAptStatusRef.current.get(apt.id);
+        return prev === 'aguardando_pagamento' && apt.status === 'scheduled' && !notifiedRef.current.has(apt.id);
+      });
+      newlyPaid.forEach(apt => notifiedRef.current.add(apt.id));
+      if (newlyPaid.length > 0) setPaymentAlerts(prev => [...prev, ...newlyPaid]);
+
       setAppointments(a.data);
       setServices(s.data);
       setStats(st.data);
@@ -1854,6 +1863,34 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => { if (token) fetchAll(); }, [token]);
+
+  // Sincroniza snapshot de status a cada vez que appointments muda
+  useEffect(() => {
+    appointments.forEach(a => prevAptStatusRef.current.set(a.id, a.status));
+  }, [appointments]);
+
+  // Polling para detectar pagamentos quando há agendamentos aguardando
+  useEffect(() => {
+    if (!token) return;
+    const tick = async () => {
+      const hasAwaiting = [...prevAptStatusRef.current.values()].some(s => s === 'aguardando_pagamento');
+      if (!hasAwaiting) return;
+      try {
+        const { data: fresh } = await api.get('/appointments/');
+        const newlyPaid = fresh.filter(apt => {
+          const prev = prevAptStatusRef.current.get(apt.id);
+          return prev === 'aguardando_pagamento' && apt.status === 'scheduled' && !notifiedRef.current.has(apt.id);
+        });
+        if (newlyPaid.length > 0) {
+          newlyPaid.forEach(apt => notifiedRef.current.add(apt.id));
+          setPaymentAlerts(prev => [...prev, ...newlyPaid]);
+          setAppointments(fresh);
+        }
+      } catch {}
+    };
+    const interval = setInterval(tick, 15000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   const logout = () => {
     sessionStorage.removeItem('admin_token');
@@ -2054,6 +2091,61 @@ export default function AdminDashboard() {
         {activeTab === 'promocoes'  && <PromocoesTab />}
         {activeTab === 'config'     && <ConfiguracoesTab blockedSlots={blockedSlots} onRefresh={fetchAll} />}
       </div>
+
+      {/* Toasts de pagamento confirmado */}
+      {paymentAlerts.length > 0 && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          display: 'flex', flexDirection: 'column', gap: '12px',
+          maxWidth: isMobile ? 'calc(100vw - 32px)' : '340px',
+        }}>
+          {paymentAlerts.map(apt => (
+            <div key={apt.id} style={{
+              background: '#ecfdf5',
+              border: '2px solid #10b981',
+              borderRadius: '18px',
+              padding: '18px 18px 14px',
+              boxShadow: '0 8px 32px rgba(16,185,129,0.28)',
+              fontFamily: C.fontSans,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>💸</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontWeight: '800', color: '#065f46', fontSize: '0.93rem' }}>
+                    {apt.client?.name?.split(' ')[0]} pagou o sinal!
+                  </p>
+                  <p style={{ margin: '2px 0 0', color: '#047857', fontSize: '0.8rem' }}>
+                    {apt.service?.name} · {fmtHora(apt.scheduled_at)} · {fmtData(apt.scheduled_at)}
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => { abrirWpp(apt.client?.phone, msgPagamentoConfirmado(apt)); dismissAlert(apt.id); }}
+                  style={{
+                    flex: 1, padding: '10px', background: '#25D366', color: '#fff',
+                    border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '0.83rem',
+                    cursor: 'pointer', fontFamily: C.fontSans,
+                    boxShadow: '0 4px 14px rgba(37,211,102,0.4)',
+                  }}
+                >
+                  📲 Confirmar no WhatsApp
+                </button>
+                <button
+                  onClick={() => dismissAlert(apt.id)}
+                  style={{
+                    padding: '10px 14px', background: 'rgba(0,0,0,0.06)',
+                    border: 'none', borderRadius: '12px', cursor: 'pointer',
+                    fontSize: '0.9rem', color: '#6b7280', fontWeight: '600',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
