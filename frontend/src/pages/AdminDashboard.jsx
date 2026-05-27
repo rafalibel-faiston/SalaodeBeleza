@@ -353,9 +353,16 @@ function AgendaTab({ appointments, onRefresh }) {
   const confirmar = async (apt) => {
     if (!window.confirm(`Confirmar agendamento de ${apt.client?.name}? O WhatsApp de confirmação será aberto automaticamente.`)) return;
     try {
-      await api.patch(`/appointments/${apt.id}/status`, { status: 'confirmed' });
+      const { data } = await api.patch(`/appointments/${apt.id}/status`, { status: 'confirmed' });
       onRefresh();
-      abrirWpp(apt.client?.phone, msgConfirmacao(apt));
+      if (data.pix_copia_cola) {
+        const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
+        const pixMsg = `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento do sinal de ${fmt(sinal)} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${data.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
+        abrirWpp(apt.client?.phone, pixMsg);
+      } else {
+        if (data.pix_error) alert(`Aviso: não foi possível gerar o Pix automaticamente.\n${data.pix_error}\n\nUse o botão "💸 Pix" no card para tentar novamente.`);
+        abrirWpp(apt.client?.phone, msgConfirmacao(apt));
+      }
     } catch { alert('Erro ao confirmar.'); }
   };
 

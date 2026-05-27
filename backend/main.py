@@ -417,10 +417,12 @@ def update_appointment_status(
                 pix_error = str(e)
 
     db.commit()
+    db.refresh(apt)
     return {
         "message": "Status atualizado!",
         "status": apt.status,
         "pix_generated": pix_generated,
+        "pix_copia_cola": apt.financial.pix_copia_cola if apt.financial else None,
         **({"pix_error": pix_error} if pix_error else {}),
     }
 
