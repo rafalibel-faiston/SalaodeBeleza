@@ -1429,6 +1429,7 @@ function FinanceiroTab({ stats }) {
 function PromocoesTab() {
   const [promos, setPromos]       = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [erro, setErro]           = useState(null);
   const [editando, setEditando]   = useState(null); // null | 'new' | promo object
   const [form, setForm]           = useState({
     name:'', code:'', discount_type:'percent', discount_value:'',
@@ -1437,7 +1438,11 @@ function PromocoesTab() {
 
   const fetchPromos = () => {
     setLoading(true);
-    api.get('/promotions/all/').then(r => setPromos(r.data)).finally(() => setLoading(false));
+    setErro(null);
+    api.get('/promotions/all/')
+      .then(r => setPromos(r.data))
+      .catch(e => setErro(e.response?.data?.detail || 'Erro ao carregar promoções.'))
+      .finally(() => setLoading(false));
   };
   useEffect(fetchPromos, []);
 
@@ -1481,13 +1486,21 @@ function PromocoesTab() {
 
   const deletar = async (id) => {
     if (!confirm('Remover esta promoção?')) return;
-    await api.delete(`/promotions/${id}/`);
-    fetchPromos();
+    try {
+      await api.delete(`/promotions/${id}/`);
+      fetchPromos();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Erro ao remover.');
+    }
   };
 
   const toggleAtivo = async (p) => {
-    await api.put(`/promotions/${p.id}/`, { is_active: !p.is_active });
-    fetchPromos();
+    try {
+      await api.put(`/promotions/${p.id}/`, { is_active: !p.is_active });
+      fetchPromos();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Erro ao atualizar.');
+    }
   };
 
   const catLabel = { all:'Todos', cilios:'Cílios', sobrancelha:'Sobrancelhas', remocao:'Remoção' };
@@ -1581,6 +1594,12 @@ function PromocoesTab() {
 
       {loading ? (
         <p style={{ color:'#9ca3af', textAlign:'center', padding:'40px' }}>Carregando...</p>
+      ) : erro ? (
+        <div style={{ textAlign:'center', padding:'40px', color:'#dc2626' }}>
+          <p style={{ fontWeight:'700' }}>Erro ao carregar promoções</p>
+          <p style={{ fontSize:'0.85rem' }}>{erro}</p>
+          <button onClick={fetchPromos} style={{ marginTop:'12px', padding:'8px 20px', background:'#d8438b', color:'#fff', border:'none', borderRadius:'10px', fontWeight:'700', cursor:'pointer' }}>Tentar novamente</button>
+        </div>
       ) : promos.length === 0 ? (
         <div style={{ textAlign:'center', padding:'60px 20px', color:'#9ca3af' }}>
           <p style={{ fontSize:'2.5rem', marginBottom:'12px' }}>🏷️</p>
