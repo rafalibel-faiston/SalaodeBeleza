@@ -17,6 +17,8 @@ const API_PREFIXES = [
   '/stats',
   '/webhooks',
   '/minha-conta',
+  '/promotions',
+  '/health',
 ];
 
 function isApiRoute(url) {
