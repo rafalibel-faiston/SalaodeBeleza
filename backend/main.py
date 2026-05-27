@@ -411,12 +411,13 @@ def get_appointment_status(appointment_id: int, db: Session = Depends(get_db)):
         "client_name": apt.client.name if apt.client else None,
         "scheduled_at": apt.scheduled_at.isoformat(),
     }
-    if apt.status == "confirmed" and apt.financial:
+    if apt.status in ("confirmed", "aguardando_pagamento", "scheduled") and apt.financial:
         resp["pix_copia_cola"]     = apt.financial.pix_copia_cola
         resp["pix_qr_code_base64"] = apt.financial.pix_qr_code_base64
         resp["total_value"]        = apt.financial.total_value
         resp["deposit_amount"]     = apt.financial.total_value - apt.financial.balance_due
         resp["balance_due"]        = apt.financial.balance_due
+        resp["deposit_paid"]       = apt.financial.deposit_paid
     return resp
 
 class StatusUpdate(BaseModel):
