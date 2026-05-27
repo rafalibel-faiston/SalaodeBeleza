@@ -62,18 +62,47 @@ const MARQUEE_ITEMS = [
 const FALLBACK = 'https://images.unsplash.com/photo-1583241800698-e8ab01830a07?q=80&w=600';
 
 // ─────────────────────────────────────────────────────────────
+const SESSION_KEY = 'salon_agendamento';
+
 export default function ClientBooking() {
-  const [services, setServices]   = useState([]);
-  const [formData, setFormData]   = useState({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' });
-  const [pendingId, setPendingId] = useState(null);    // appointment_id aguardando confirmação
-  const [confirmedData, setConfirmedData] = useState(null); // dados após confirmação
-  const [rejected, setRejected]   = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [activeModal, setModal]   = useState(null);
+  const [services, setServices]         = useState([]);
+  const [formData, setFormData]         = useState({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' });
+  const [pendingId, setPendingId]       = useState(null);
+  const [confirmedData, setConfirmedData] = useState(null);
+  const [rejected, setRejected]         = useState(false);
+  const [loading, setLoading]           = useState(false);
+  const [activeModal, setModal]         = useState(null);
   const [catalogFilter, setCatalogFilter] = useState(null);
-  const [svcCategory, setSvcCategory]     = useState(null);
+  const [svcCategory, setSvcCategory]   = useState(null);
+  const [sessionChecked, setSessionChecked] = useState(false); // evita flicker ao restaurar sessão
+  const [phoneQuery, setPhoneQuery]     = useState('');
+  const [phoneQueryLoading, setPhoneQueryLoading] = useState(false);
+  const [phoneQueryError, setPhoneQueryError]     = useState('');
   const formRef  = useRef(null);
   const storyRef = useRef(null);
+
+  // ── Helpers de sessão ────────────────────────────────────
+  const saveSession = (appointmentId, fd) => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      appointment_id: appointmentId,
+      client_name:    fd.client_name,
+      client_phone:   fd.client_phone,
+      service_id:     fd.service_id,
+      scheduled_date: fd.scheduled_date,
+      scheduled_time: fd.scheduled_time,
+    }));
+  };
+
+  const clearSession = () => localStorage.removeItem(SESSION_KEY);
+
+  const resetBooking = () => {
+    clearSession();
+    setPendingId(null);
+    setConfirmedData(null);
+    setRejected(false);
+    setSvcCategory(null);
+    setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' });
+  };
 
   const timeSlots = [];
   for (let h = 8; h < 20; h++) {
@@ -81,21 +110,53 @@ export default function ClientBooking() {
     if (h < 19) timeSlots.push(`${String(h).padStart(2,'0')}:30`);
   }
 
+  // ── Carrega serviços + restaura sessão salva ────────────
   useEffect(() => {
     api.get('/services/').then(r => setServices(r.data)).catch(console.error);
+
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) { setSessionChecked(true); return; }
+
+    let session;
+    try { session = JSON.parse(raw); } catch { clearSession(); setSessionChecked(true); return; }
+
+    api.get(`/appointments/${session.appointment_id}/status`)
+      .then(r => {
+        const s = r.data.status;
+        if (s === 'confirmed' || s === 'scheduled') {
+          setConfirmedData(r.data);
+        } else if (s === 'rejected') {
+          setRejected(true);
+          clearSession();
+        } else if (s === 'pending') {
+          setFormData({
+            client_name:    session.client_name    || '',
+            client_phone:   session.client_phone   || '',
+            service_id:     session.service_id     || '',
+            scheduled_date: session.scheduled_date || '',
+            scheduled_time: session.scheduled_time || '',
+          });
+          setPendingId(session.appointment_id);
+        } else {
+          clearSession(); // completed, no_show, etc.
+        }
+      })
+      .catch(() => clearSession())
+      .finally(() => setSessionChecked(true));
   }, []);
 
-  // Polling: verifica status do agendamento pendente a cada 5s
+  // ── Polling: verifica status a cada 5s ───────────────────
   useEffect(() => {
     if (!pendingId || confirmedData || rejected) return;
     const interval = setInterval(async () => {
       try {
         const r = await api.get(`/appointments/${pendingId}/status`);
-        if (r.data.status === 'confirmed') {
+        if (r.data.status === 'confirmed' || r.data.status === 'scheduled') {
           setConfirmedData(r.data);
           clearInterval(interval);
         } else if (r.data.status === 'rejected') {
           setRejected(true);
+          clearSession();
           clearInterval(interval);
         }
       } catch {}
@@ -117,6 +178,7 @@ export default function ClientBooking() {
         client_name: formData.client_name, client_phone: formData.client_phone,
         service_id: parseInt(formData.service_id), scheduled_at: scheduledAt.toISOString()
       });
+      saveSession(r.data.appointment_id, formData);
       setPendingId(r.data.appointment_id);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -148,6 +210,53 @@ export default function ClientBooking() {
     return matches[0]?.estimated_minutes ?? null;
   };
 
+  // ── Consulta por telefone (cross-device / cache limpo) ──
+  const handlePhoneQuery = async () => {
+    if (!phoneQuery.trim()) return;
+    setPhoneQueryLoading(true);
+    setPhoneQueryError('');
+    try {
+      const r = await api.get(`/minha-conta/${encodeURIComponent(phoneQuery)}/`);
+      const active = r.data.appointments.find(a =>
+        ['pending', 'confirmed', 'scheduled'].includes(a.status)
+      );
+      if (!active) {
+        setPhoneQueryError('Nenhum agendamento ativo encontrado para este número.');
+        return;
+      }
+      if (active.status === 'confirmed' || active.status === 'scheduled') {
+        setConfirmedData({
+          ...active,
+          client_name:  r.data.client.name,
+          service_name: active.service_name,
+        });
+      } else {
+        setFormData(p => ({
+          ...p,
+          client_name:  r.data.client.name,
+          client_phone: r.data.client.phone,
+        }));
+        saveSession(active.id, {
+          client_name:    r.data.client.name,
+          client_phone:   r.data.client.phone,
+          service_id:     String(active.service_id || ''),
+          scheduled_date: '',
+          scheduled_time: '',
+        });
+        setPendingId(active.id);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setPhoneQueryError(
+        err.response?.status === 404
+          ? 'Nenhum cadastro encontrado com este número.'
+          : 'Erro ao consultar. Tente novamente.'
+      );
+    } finally {
+      setPhoneQueryLoading(false);
+    }
+  };
+
   const scrollToForm = (filter, catKey) => {
     setModal(null);
     if (filter && services.length > 0) {
@@ -162,6 +271,17 @@ export default function ClientBooking() {
     }
     formRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // ── Aguarda verificação de sessão antes de renderizar ────
+  if (!sessionChecked) {
+    return (
+      <div style={{ minHeight:'60vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'16px' }}>
+        <motion.div animate={{ rotate:360 }} transition={{ duration:1, repeat:Infinity, ease:'linear' }}
+          style={{ width:'36px', height:'36px', borderRadius:'50%', border:'3px solid var(--pink-mid)', borderTopColor:'var(--pink)' }} />
+        <p style={{ color:'var(--muted)', fontSize:'0.85rem' }}>Verificando seu agendamento...</p>
+      </div>
+    );
+  }
 
   // ── Scroll-driven parallax ────────────────────────────────
   const { scrollY } = useScroll();
@@ -246,7 +366,7 @@ export default function ClientBooking() {
         <br />
         <button
           style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '0.82rem', cursor: 'pointer', marginTop: '8px', textDecoration: 'underline' }}
-          onClick={() => { setPendingId(null); setRejected(false); setSvcCategory(null); setFormData({ client_name: '', client_phone: '', service_id: '', scheduled_date: '', scheduled_time: '' }); }}>
+          onClick={resetBooking}>
           Fazer um novo agendamento
         </button>
       </motion.div>
@@ -270,7 +390,7 @@ export default function ClientBooking() {
         </a>
         <br />
         <button className="btn-pill btn-pill-ghost" style={{ marginTop:'8px' }}
-          onClick={() => { setPendingId(null); setRejected(false); setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' }); }}>
+          onClick={resetBooking}>
           Tentar outra data
         </button>
       </motion.div>
@@ -307,7 +427,7 @@ export default function ClientBooking() {
           </div>
         )}
         <button className="btn-primary" style={{ background:'#555', marginTop:'10px' }}
-          onClick={() => { setConfirmedData(null); setPendingId(null); setSvcCategory(null); setFormData({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' }); }}>
+          onClick={resetBooking}>
           Fazer Novo Agendamento
         </button>
       </motion.div>
@@ -526,6 +646,41 @@ export default function ClientBooking() {
           <li><strong style={{ color:'#fff' }}>Pré-procedimento:</strong> Venha sem maquiagem nos olhos e retire as lentes de contato antes do atendimento.</li>
         </ul>
       </motion.section>
+
+      {/* ══════════════ CONSULTAR AGENDAMENTO ════════════════ */}
+      <motion.div
+        initial={{ opacity:0, y:30 }} whileInView={{ opacity:1, y:0 }}
+        viewport={{ once:true }} transition={{ duration:0.6 }}
+        style={{ maxWidth:'480px', margin:'0 auto 0', padding:'0 20px 48px' }}>
+        <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'20px', padding:'24px 28px' }}>
+          <p style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:'6px', color:'var(--text)' }}>
+            📱 Já agendou antes?
+          </p>
+          <p style={{ fontSize:'0.8rem', color:'var(--muted)', marginBottom:'16px', lineHeight:1.6 }}>
+            Consulte seu agendamento pelo telefone — mesmo trocando de dispositivo.
+          </p>
+          <div style={{ display:'flex', gap:'10px' }}>
+            <input
+              type="tel"
+              value={phoneQuery}
+              onChange={e => { setPhoneQuery(e.target.value); setPhoneQueryError(''); }}
+              onKeyDown={e => e.key === 'Enter' && handlePhoneQuery()}
+              placeholder="(11) 99999-9999"
+              style={{ flex:1, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'12px', padding:'11px 16px', color:'var(--text)', fontSize:'0.9rem', outline:'none' }}
+            />
+            <motion.button
+              onClick={handlePhoneQuery}
+              disabled={phoneQueryLoading}
+              whileHover={{ scale:1.04 }} whileTap={{ scale:0.97 }}
+              style={{ background:'var(--pink)', color:'#fff', border:'none', borderRadius:'12px', padding:'11px 20px', fontWeight:700, fontSize:'0.85rem', cursor:'pointer', whiteSpace:'nowrap', opacity: phoneQueryLoading ? 0.7 : 1 }}>
+              {phoneQueryLoading ? '...' : 'Consultar'}
+            </motion.button>
+          </div>
+          {phoneQueryError && (
+            <p style={{ fontSize:'0.78rem', color:'#f87171', marginTop:'10px' }}>{phoneQueryError}</p>
+          )}
+        </div>
+      </motion.div>
 
       {/* ══════════════ FORM ══════════════════════════════════ */}
       <div className="form-section" ref={formRef}>

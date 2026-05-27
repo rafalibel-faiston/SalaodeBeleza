@@ -700,8 +700,12 @@ def minha_conta(phone: str, db: Session = Depends(get_db)):
                 "scheduled_at": a.scheduled_at.isoformat(),
                 "status": a.status,
                 "service_name": a.service.name if a.service else None,
+                "service_id": a.service_id,
                 "total_value": a.financial.total_value if a.financial else None,
+                "deposit_amount": (a.financial.total_value - a.financial.balance_due) if a.financial else None,
                 "balance_due": a.financial.balance_due if a.financial else None,
+                "pix_qr_code_base64": a.financial.pix_qr_code_base64 if a.financial else None,
+                "pix_copia_cola": a.financial.pix_copia_cola if a.financial else None,
             }
             for a in apts
         ],
