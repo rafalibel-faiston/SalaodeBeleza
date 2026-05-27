@@ -58,6 +58,11 @@ const msgConfirmacao = (apt) => {
 const msgLembrete = (apt) =>
   `Oi, meu amor! ✨\n\nPassando pra te lembrar do seu horário comigo.\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Local: Rua Ari Carneiro Fernandes 155\n\nTe espero pra te deixar ainda mais linda ✨💅\n\nPeço que chegue no horário certinho, tá bom? 💕\nQualquer imprevisto, me avisa.`;
 
+const msgPix = (apt) => {
+  const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
+  return `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento do sinal de ${fmt(sinal)} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${apt.financial?.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
+};
+
 const CORES = ['#d8438b', '#128C7E', '#f59e0b', '#6366f1', '#10b981', '#ef4444'];
 
 const timeSlots = [];
@@ -487,6 +492,9 @@ function AgendaTab({ appointments, onRefresh }) {
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
               {apt.status === 'confirmed' && (
                 <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
+              )}
+              {apt.financial?.pix_copia_cola && apt.status === 'confirmed' && (
+                <BtnWpp label="💸 Pix" color="#6366f1" onClick={() => abrirWpp(apt.client?.phone, msgPix(apt))} />
               )}
               {(apt.status === 'confirmed' || apt.status === 'scheduled') && (
                 <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
