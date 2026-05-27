@@ -272,18 +272,7 @@ export default function ClientBooking() {
     formRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // ── Aguarda verificação de sessão antes de renderizar ────
-  if (!sessionChecked) {
-    return (
-      <div style={{ minHeight:'60vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'16px' }}>
-        <motion.div animate={{ rotate:360 }} transition={{ duration:1, repeat:Infinity, ease:'linear' }}
-          style={{ width:'36px', height:'36px', borderRadius:'50%', border:'3px solid var(--pink-mid)', borderTopColor:'var(--pink)' }} />
-        <p style={{ color:'var(--muted)', fontSize:'0.85rem' }}>Verificando seu agendamento...</p>
-      </div>
-    );
-  }
-
-  // ── Scroll-driven parallax ────────────────────────────────
+  // ── Scroll-driven parallax (hooks SEMPRE chamados, sem early return antes) ──
   const { scrollY } = useScroll();
   const heroY      = useTransform(scrollY, [0, 700], [0, -220]);
   const heroBlobY  = useTransform(scrollY, [0, 700], [0, -100]);
@@ -295,6 +284,17 @@ export default function ClientBooking() {
   const imgScale = useTransform(sp, [0, 0.5], [1.14, 1.0]);
   const storyTY  = useTransform(sp, [0, 0.55], ['90px', '0px']);
   const storyOp  = useTransform(sp, [0, 0.38], [0, 1]);
+
+  // ── Aguarda verificação de sessão (DEPOIS de todos os hooks) ─
+  if (!sessionChecked) {
+    return (
+      <div style={{ minHeight:'60vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'16px' }}>
+        <motion.div animate={{ rotate:360 }} transition={{ duration:1, repeat:Infinity, ease:'linear' }}
+          style={{ width:'36px', height:'36px', borderRadius:'50%', border:'3px solid var(--pink-mid)', borderTopColor:'var(--pink)' }} />
+        <p style={{ color:'var(--muted)', fontSize:'0.85rem' }}>Verificando seu agendamento...</p>
+      </div>
+    );
+  }
 
   // ── Tela: solicitação enviada (aguarda confirmação via WhatsApp) ──
   if (pendingId && !confirmedData && !rejected) {
