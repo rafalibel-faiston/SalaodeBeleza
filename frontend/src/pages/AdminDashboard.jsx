@@ -485,8 +485,12 @@ function AgendaTab({ appointments, onRefresh }) {
 
           {apt.status !== 'no_show' && apt.status !== 'pending' && reagendando !== apt.id && (
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
-              <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
-              <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
+              {apt.status === 'confirmed' && (
+                <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
+              )}
+              {(apt.status === 'confirmed' || apt.status === 'scheduled') && (
+                <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
+              )}
               <button onClick={() => { setReagendando(apt.id); setNovaData(''); setNovaHora(''); }} className="btn-tactile"
                 style={{ flex: 1, minWidth: '90px', padding: '8px', background: 'rgba(245,158,11,0.12)', color: '#92400e', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '12px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', fontFamily: C.fontSans }}>
                 🔄 Remarcar
