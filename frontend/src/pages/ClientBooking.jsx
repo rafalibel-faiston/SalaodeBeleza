@@ -229,7 +229,19 @@ export default function ClientBooking() {
         pay_full: payFull,
       });
       saveSession(r.data.appointment_id, formData);
-      setPendingId(r.data.appointment_id);
+      // PIX já vem na resposta — mostra QR direto sem etapa de aprovação
+      setConfirmedData({
+        id: r.data.appointment_id,
+        status: r.data.status,
+        service_name: r.data.service_name,
+        client_name: r.data.client_name,
+        scheduled_at: r.data.scheduled_at,
+        total_value: r.data.total_value,
+        deposit_amount: r.data.deposit_amount,
+        balance_due: r.data.balance_due,
+        pix_qr_code_base64: r.data.pix_qr_code_base64,
+        pix_copia_cola: r.data.pix_copia_cola,
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       alert('Erro ao criar agendamento: ' + (err.response?.data?.detail || err.message));

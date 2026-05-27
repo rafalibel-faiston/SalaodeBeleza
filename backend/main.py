@@ -359,13 +359,15 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
     if service.base_price <= 50 or booking.pay_full:
         balance_due = 0.0
 
-    # Cria agendamento como PENDENTE — aguarda confirmação da Giovanna
+    deposit = round(total_value - balance_due, 2)
+
+    # Cria agendamento direto em aguardando_pagamento — sem etapa de aprovação
     appointment = models.Appointment(
         client_id=client.id,
         service_id=service.id,
         scheduled_at=booking.scheduled_at,
         is_maintenance=booking.is_maintenance,
-        status="pending",
+        status="aguardando_pagamento",
     )
     db.add(appointment)
     db.commit()
@@ -381,14 +383,31 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
     )
     db.commit()
 
+    # Gera PIX imediatamente
+    fin = db.query(models.Financial).filter(
+        models.Financial.appointment_id == appointment.id
+    ).first()
+    pix_error = None
+    if fin and deposit > 0:
+        try:
+            _generate_pix(fin, appointment, deposit)
+            db.commit()
+        except Exception as e:
+            pix_error = str(e)
+
     return {
         "appointment_id": appointment.id,
-        "status": "pending",
+        "status": appointment.status,
         "service_name": service.name,
         "client_name": client.name,
         "scheduled_at": appointment.scheduled_at.isoformat(),
         "discount_amount": discount_amount,
         "total_value": total_value,
+        "deposit_amount": deposit,
+        "balance_due": balance_due,
+        "pix_qr_code_base64": fin.pix_qr_code_base64 if fin and not pix_error else None,
+        "pix_copia_cola": fin.pix_copia_cola if fin and not pix_error else None,
+        **({"pix_error": pix_error} if pix_error else {}),
     }
 
 @app.get("/appointments/", response_model=list[schemas.AppointmentResponse])
