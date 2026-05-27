@@ -345,25 +345,32 @@ function AgendaTab({ appointments, onRefresh }) {
 
   const now = new Date();
   const pendentes   = appointments.filter(a => a.status === 'pending');
-  const confirmados = appointments.filter(a => ['confirmed', 'scheduled', 'completed'].includes(a.status));
+  const confirmados = appointments.filter(a => ['confirmed', 'aguardando_pagamento', 'scheduled', 'completed'].includes(a.status));
   const proximos    = appointments
     .filter(a => new Date(a.scheduled_at) >= now && !['rejected', 'cancelled', 'no_show'].includes(a.status))
     .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
 
   const confirmar = async (apt) => {
-    if (!window.confirm(`Confirmar agendamento de ${apt.client?.name}? O WhatsApp de confirmação será aberto automaticamente.`)) return;
+    if (!window.confirm(`Confirmar agendamento de ${apt.client?.name}?`)) return;
     try {
-      const { data } = await api.patch(`/appointments/${apt.id}/status`, { status: 'confirmed' });
+      await api.patch(`/appointments/${apt.id}/status`, { status: 'confirmed' });
+      onRefresh();
+      abrirWpp(apt.client?.phone, msgConfirmacao(apt));
+    } catch { alert('Erro ao confirmar.'); }
+  };
+
+  const enviarPix = async (apt) => {
+    try {
+      const { data } = await api.patch(`/appointments/${apt.id}/status`, { status: 'aguardando_pagamento' });
       onRefresh();
       if (data.pix_copia_cola) {
-        const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
-        const pixMsg = `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento do sinal de ${fmt(sinal)} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${data.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
+        const sinal = apt.financial?.total_value - apt.financial?.balance_due || 0;
+        const pixMsg = `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento ${sinal > 0 ? `do sinal de ${fmt(sinal)}` : `de ${fmt(apt.financial?.total_value)}`} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${data.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
         abrirWpp(apt.client?.phone, pixMsg);
       } else {
-        if (data.pix_error) alert(`Aviso: não foi possível gerar o Pix automaticamente.\n${data.pix_error}\n\nUse o botão "💸 Pix" no card para tentar novamente.`);
-        abrirWpp(apt.client?.phone, msgConfirmacao(apt));
+        alert(data.pix_error ? `Erro ao gerar Pix: ${data.pix_error}` : 'Pix não pôde ser gerado. Verifique as configurações do Mercado Pago.');
       }
-    } catch { alert('Erro ao confirmar.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao gerar Pix.'); }
   };
 
   const recusar = async (apt) => {
@@ -498,12 +505,15 @@ function AgendaTab({ appointments, onRefresh }) {
           {apt.status !== 'no_show' && apt.status !== 'pending' && reagendando !== apt.id && (
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
               {apt.status === 'confirmed' && (
-                <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
+                <>
+                  <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
+                  <BtnWpp label="💸 Enviar Pix" color="#6366f1" onClick={() => enviarPix(apt)} />
+                </>
               )}
-              {apt.financial?.pix_copia_cola && apt.status === 'confirmed' && (
-                <BtnWpp label="💸 Pix" color="#6366f1" onClick={() => abrirWpp(apt.client?.phone, msgPix(apt))} />
+              {apt.status === 'aguardando_pagamento' && apt.financial?.pix_copia_cola && (
+                <BtnWpp label="💸 Reenviar Pix" color="#6366f1" onClick={() => abrirWpp(apt.client?.phone, msgPix(apt))} />
               )}
-              {(apt.status === 'confirmed' || apt.status === 'scheduled') && (
+              {(apt.status === 'confirmed' || apt.status === 'aguardando_pagamento' || apt.status === 'scheduled') && (
                 <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
               )}
               <button onClick={() => { setReagendando(apt.id); setNovaData(''); setNovaHora(''); }} className="btn-tactile"
@@ -669,9 +679,9 @@ function AgendaTab({ appointments, onRefresh }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: '700', color: C.text, fontSize: '0.9rem' }}>{apt.client?.name}</span>
           <Badge
-            label={apt.status === 'confirmed' ? 'Confirmado' : apt.status === 'pending' ? 'Pendente' : apt.status === 'no_show' ? 'Falta' : apt.status === 'cancelled' ? 'Cancelado' : apt.status}
-            color={apt.status === 'confirmed' ? C.success : apt.status === 'pending' ? C.warning : C.danger}
-            bg={apt.status === 'confirmed' ? C.successBg : apt.status === 'pending' ? C.warnBg : C.dangerBg}
+            label={apt.status === 'confirmed' ? 'Confirmado' : apt.status === 'aguardando_pagamento' ? 'Aguardando Pix' : apt.status === 'pending' ? 'Pendente' : apt.status === 'no_show' ? 'Falta' : apt.status === 'cancelled' ? 'Cancelado' : apt.status}
+            color={apt.status === 'confirmed' ? C.success : apt.status === 'aguardando_pagamento' ? '#6366f1' : apt.status === 'pending' ? C.warning : C.danger}
+            bg={apt.status === 'confirmed' ? C.successBg : apt.status === 'aguardando_pagamento' ? '#ede9fe' : apt.status === 'pending' ? C.warnBg : C.dangerBg}
           />
         </div>
         <p style={{ margin: '2px 0 0', color: C.textMuted, fontSize: '0.82rem' }}>💅 {apt.service?.name}</p>
@@ -685,7 +695,7 @@ function AgendaTab({ appointments, onRefresh }) {
   const filters = [
     { id: 'proximos',   label: 'Próximos Agendamentos', count: proximos.length,    color: '#6366f1', activeBg: 'rgba(99,102,241,0.08)' },
     { id: 'pendentes',  label: 'Aguardando Aprovação',  count: pendentes.length,   color: C.warning, activeBg: 'rgba(245,158,11,0.08)' },
-    { id: 'confirmados',label: 'Confirmados',           count: confirmados.length, color: C.success, activeBg: 'rgba(16,185,129,0.08)' },
+    { id: 'confirmados', label: 'Confirmados',           count: confirmados.length, color: C.success, activeBg: 'rgba(16,185,129,0.08)' },
     { id: 'historico',  label: 'Histórico Completo',    count: appointments.length,color: C.danger,  activeBg: 'rgba(220,38,38,0.06)' },
   ];
 
@@ -1128,10 +1138,10 @@ function ClientesTab({ clients, appointments, onRefresh }) {
                         <span style={{ color: C.text }}>{fmtDate(a.scheduled_at)} — {a.service?.name || '—'}</span>
                         <span style={{
                           padding: '2px 10px', borderRadius: '12px', fontSize: '0.73rem', fontWeight: '700',
-                          background: a.status === 'no_show' ? C.dangerBg : a.status === 'pending' ? C.warnBg : a.status === 'rejected' ? '#f3f4f6' : a.status === 'scheduled' || a.status === 'confirmed' ? '#dbeafe' : C.successBg,
-                          color: a.status === 'no_show' ? C.danger : a.status === 'pending' ? '#92400e' : a.status === 'rejected' ? '#9ca3af' : a.status === 'scheduled' || a.status === 'confirmed' ? '#1d4ed8' : '#065f46',
+                          background: a.status === 'no_show' ? C.dangerBg : a.status === 'pending' ? C.warnBg : a.status === 'rejected' ? '#f3f4f6' : a.status === 'aguardando_pagamento' ? '#ede9fe' : a.status === 'scheduled' || a.status === 'confirmed' ? '#dbeafe' : C.successBg,
+                          color: a.status === 'no_show' ? C.danger : a.status === 'pending' ? '#92400e' : a.status === 'rejected' ? '#9ca3af' : a.status === 'aguardando_pagamento' ? '#6366f1' : a.status === 'scheduled' || a.status === 'confirmed' ? '#1d4ed8' : '#065f46',
                         }}>
-                          {a.status === 'no_show' ? 'Falta' : a.status === 'pending' ? 'Pendente' : a.status === 'rejected' ? 'Recusado' : a.status === 'confirmed' ? 'Confirmado' : a.status === 'scheduled' ? 'Agendado' : 'Concluído'}
+                          {a.status === 'no_show' ? 'Falta' : a.status === 'pending' ? 'Pendente' : a.status === 'rejected' ? 'Recusado' : a.status === 'aguardando_pagamento' ? 'Aguardando Pix' : a.status === 'confirmed' ? 'Confirmado' : a.status === 'scheduled' ? 'Agendado' : 'Concluído'}
                         </span>
                       </div>
                     ))}

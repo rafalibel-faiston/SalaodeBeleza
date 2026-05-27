@@ -239,6 +239,7 @@ class BookingRequest(BaseModel):
     has_henna_allergy: bool = False
     medical_restrictions: Optional[str] = None
     promo_code: Optional[str] = None
+    pay_full: bool = False
 
 @app.post("/appointments/")
 def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
@@ -298,6 +299,10 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
     total_value = round(total_value - discount_amount, 2)
     balance_due = round(total_value - service.deposit_amount, 2)
     if balance_due < 0:
+        balance_due = 0.0
+
+    # Serviços até R$50 ou cliente escolheu pagar tudo → sem sinal
+    if service.base_price <= 50 or booking.pay_full:
         balance_due = 0.0
 
     # Cria agendamento como PENDENTE — aguarda confirmação da Giovanna
@@ -395,7 +400,7 @@ def update_appointment_status(
     _: None = Depends(verify_admin),
 ):
     """Admin confirma ou recusa um agendamento pendente."""
-    valid = {"pending", "confirmed", "scheduled", "rejected", "completed", "no_show"}
+    valid = {"pending", "confirmed", "scheduled", "rejected", "completed", "no_show", "aguardando_pagamento"}
     if data.status not in valid:
         raise HTTPException(status_code=400, detail="Status inválido.")
     apt = db.query(models.Appointment).filter(models.Appointment.id == appointment_id).first()
@@ -406,7 +411,7 @@ def update_appointment_status(
     # Auto-generate Pix when confirming (only if deposit > 0 and not already generated)
     pix_generated = False
     pix_error = None
-    if data.status == "confirmed" and apt.financial and apt.client:
+    if data.status == "aguardando_pagamento" and apt.financial and apt.client:
         fin = apt.financial
         deposit = round(fin.total_value - fin.balance_due, 2)
         if deposit > 0 and not fin.pix_copia_cola:
@@ -929,7 +934,7 @@ async def mp_webhook(request: Request, db: Session = Depends(get_db)):
                         apt = db.query(models.Appointment).filter(
                             models.Appointment.id == fin.appointment_id
                         ).first()
-                        if apt and apt.status == "confirmed":
+                        if apt and apt.status == "aguardando_pagamento":
                             apt.status = "scheduled"
                         db.commit()
         except Exception:

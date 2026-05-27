@@ -67,6 +67,7 @@ const SESSION_KEY = 'salon_agendamento';
 export default function ClientBooking() {
   const [services, setServices]         = useState([]);
   const [formData, setFormData]         = useState({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' });
+  const [payFull, setPayFull]           = useState(false);
   const [pendingId, setPendingId]       = useState(null);
   const [confirmedData, setConfirmedData] = useState(null);
   const [rejected, setRejected]         = useState(false);
@@ -145,7 +146,7 @@ export default function ClientBooking() {
     api.get(`/appointments/${session.appointment_id}/status`)
       .then(r => {
         const s = r.data.status;
-        if (s === 'confirmed' || s === 'scheduled') {
+        if (s === 'confirmed' || s === 'scheduled' || s === 'aguardando_pagamento') {
           setConfirmedData(r.data);
         } else if (s === 'rejected') {
           setRejected(true);
@@ -173,7 +174,7 @@ export default function ClientBooking() {
     const interval = setInterval(async () => {
       try {
         const r = await api.get(`/appointments/${pendingId}/status`);
-        if (r.data.status === 'confirmed' || r.data.status === 'scheduled') {
+        if (r.data.status === 'confirmed' || r.data.status === 'scheduled' || r.data.status === 'aguardando_pagamento') {
           setConfirmedData(r.data);
           clearInterval(interval);
         } else if (r.data.status === 'rejected') {
@@ -189,6 +190,7 @@ export default function ClientBooking() {
   // ── Polling 2: aguarda pagamento Pix ser aprovado ────────
   useEffect(() => {
     if (!confirmedData || confirmedData.status === 'scheduled') return;
+    // Continua polling em 'confirmed' e 'aguardando_pagamento' até virar 'scheduled'
     const interval = setInterval(async () => {
       try {
         const r = await api.get(`/appointments/${confirmedData.id}/status`);
@@ -200,6 +202,13 @@ export default function ClientBooking() {
     }, 8000);
     return () => clearInterval(interval);
   }, [confirmedData]);
+
+  // Força payFull para serviços <= R$50 quando o serviço muda
+  useEffect(() => {
+    const sel = services?.find(s => s.id === parseInt(formData.service_id));
+    if (sel && sel.base_price <= 50) setPayFull(true);
+    else setPayFull(false);
+  }, [formData.service_id, services]);
 
   const handleChange  = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -215,6 +224,7 @@ export default function ClientBooking() {
         client_name: formData.client_name, client_phone: formData.client_phone,
         service_id: parseInt(formData.service_id), scheduled_at: scheduledAt.toISOString(),
         promo_code: promoStatus?.valid ? promoCode.trim() : null,
+        pay_full: payFull,
       });
       saveSession(r.data.appointment_id, formData);
       setPendingId(r.data.appointment_id);
@@ -256,13 +266,13 @@ export default function ClientBooking() {
     try {
       const r = await api.get(`/minha-conta/${encodeURIComponent(phoneQuery)}/`);
       const active = r.data.appointments.find(a =>
-        ['pending', 'confirmed', 'scheduled'].includes(a.status)
+        ['pending', 'confirmed', 'aguardando_pagamento', 'scheduled'].includes(a.status)
       );
       if (!active) {
         setPhoneQueryError('Nenhum agendamento ativo encontrado para este número.');
         return;
       }
-      if (active.status === 'confirmed' || active.status === 'scheduled') {
+      if (active.status === 'confirmed' || active.status === 'aguardando_pagamento' || active.status === 'scheduled') {
         setConfirmedData({
           ...active,
           client_name:  r.data.client.name,
@@ -478,7 +488,36 @@ export default function ClientBooking() {
       );
     }
 
-    // Aguardando pagamento do sinal
+    // Aguardando envio do Pix pela Giovanna (confirmed, sem QR ainda)
+    if (!hasPix) {
+      return (
+        <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
+          initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
+          <motion.div style={{ fontSize:'3rem', marginBottom:'8px' }}
+            animate={{ scale:[1,1.08,1] }} transition={{ duration:2.2, repeat:Infinity, ease:'easeInOut' }}>
+            ✅
+          </motion.div>
+          <h2 className="title">Horário <span>Confirmado!</span></h2>
+          <p style={{ color:'var(--muted)', marginBottom:'28px' }}>Arrasou, {confirmedData.client_name?.split(' ')[0]}! 💅</p>
+          {infoCard}
+          <div style={{ background:'rgba(216,67,139,0.07)', border:'1.5px solid rgba(216,67,139,0.25)', borderRadius:'16px', padding:'18px 22px', marginBottom:'28px', display:'flex', alignItems:'center', gap:'14px', textAlign:'left' }}>
+            <motion.span style={{ fontSize:'1.8rem', flexShrink:0 }}
+              animate={{ rotate:[0,15,-15,0] }} transition={{ duration:2.5, repeat:Infinity, ease:'easeInOut' }}>
+              ⏳
+            </motion.span>
+            <p style={{ margin:0, fontSize:'0.88rem', color:'var(--text)', lineHeight:1.6 }}>
+              A Giovanna está preparando o código Pix para o sinal...<br />
+              <span style={{ color:'var(--muted)', fontWeight:400, fontSize:'0.82rem' }}>Você receberá uma notificação assim que estiver pronto.</span>
+            </p>
+          </div>
+          <button className="btn-primary" style={{ background:'#555', marginTop:'10px' }} onClick={resetBooking}>
+            Fazer Novo Agendamento
+          </button>
+        </motion.div>
+      );
+    }
+
+    // aguardando_pagamento — Pix enviado, cliente ainda não pagou
     return (
       <motion.div className="container pix-container" style={{ marginTop:'50px', marginBottom:'50px' }}
         initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6 }}>
@@ -486,18 +525,16 @@ export default function ClientBooking() {
         <h2 className="title">Horário <span>Confirmado!</span></h2>
         <p style={{ color:'var(--muted)', marginBottom:'28px' }}>Arrasou, {confirmedData.client_name?.split(' ')[0]}! 💅</p>
         {infoCard}
-        {hasPix && (
-          <div style={{ marginBottom:'20px' }}>
-            <p style={{ fontWeight:'700', marginBottom:'12px' }}>Pague o sinal para garantir sua vaga:</p>
-            <img src={`data:image/jpeg;base64,${confirmedData.pix_qr_code_base64}`} alt="QR Code Pix" className="pix-qrcode" />
-            <p style={{ marginBottom:'8px', fontWeight:'600', marginTop:'16px', fontSize:'0.9rem' }}>Pix Copia e Cola:</p>
-            <textarea readOnly value={confirmedData.pix_copia_cola} className="pix-textarea" />
-            <button className="btn-primary" onClick={() => navigator.clipboard.writeText(confirmedData.pix_copia_cola)}>Copiar Código Pix</button>
-            <p style={{ fontSize:'0.75rem', color:'var(--muted)', marginTop:'12px' }}>
-              Aguardando confirmação do pagamento...
-            </p>
-          </div>
-        )}
+        <div style={{ marginBottom:'20px' }}>
+          <p style={{ fontWeight:'700', marginBottom:'12px' }}>Pague o sinal para garantir sua vaga:</p>
+          <img src={`data:image/jpeg;base64,${confirmedData.pix_qr_code_base64}`} alt="QR Code Pix" className="pix-qrcode" />
+          <p style={{ marginBottom:'8px', fontWeight:'600', marginTop:'16px', fontSize:'0.9rem' }}>Pix Copia e Cola:</p>
+          <textarea readOnly value={confirmedData.pix_copia_cola} className="pix-textarea" />
+          <button className="btn-primary" onClick={() => navigator.clipboard.writeText(confirmedData.pix_copia_cola)}>Copiar Código Pix</button>
+          <p style={{ fontSize:'0.75rem', color:'var(--muted)', marginTop:'12px' }}>
+            Aguardando confirmação do pagamento...
+          </p>
+        </div>
         <button className="btn-primary" style={{ background:'#555', marginTop:'10px' }} onClick={resetBooking}>
           Fazer Novo Agendamento
         </button>
@@ -891,6 +928,32 @@ export default function ClientBooking() {
               <p style={{ marginTop:'8px', fontSize:'0.82rem', color:'#fca5a5' }}>❌ {promoError}</p>
             )}
           </div>
+
+          {/* Toggle pagamento sinal vs. total */}
+          {(() => {
+            const sel = services?.find(s => s.id === parseInt(formData.service_id));
+            if (!sel) return null;
+            if (sel.base_price <= 50) {
+              return (
+                <p style={{ fontSize:'0.82rem', color:'#6b7280', marginTop:'8px', marginBottom:'16px' }}>
+                  💳 Pagamento completo: <strong>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong>
+                </p>
+              );
+            }
+            return (
+              <div style={{ marginTop:'12px', marginBottom:'16px', display:'flex', flexDirection:'column', gap:'8px' }}>
+                <p style={{ fontSize:'0.82rem', fontWeight:'700', margin:0, color:'var(--text)' }}>Como prefere pagar?</p>
+                <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${!payFull ? 'var(--primary, #d8438b)' : '#e5e7eb'}`, background: !payFull ? 'rgba(216,67,139,0.06)' : '#f9fafb' }}>
+                  <input type="radio" name="pay_option" checked={!payFull} onChange={() => setPayFull(false)} />
+                  <span style={{ fontSize:'0.88rem' }}>💸 Pagar sinal agora — <strong>R$ {sel.deposit_amount.toFixed(2).replace('.',',')}</strong> <span style={{ color:'#6b7280', fontWeight:'400' }}>(restante na hora)</span></span>
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${payFull ? 'var(--primary, #d8438b)' : '#e5e7eb'}`, background: payFull ? 'rgba(216,67,139,0.06)' : '#f9fafb' }}>
+                  <input type="radio" name="pay_option" checked={payFull} onChange={() => setPayFull(true)} />
+                  <span style={{ fontSize:'0.88rem' }}>✅ Pagar tudo agora — <strong>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong></span>
+                </label>
+              </div>
+            );
+          })()}
 
           <motion.button type="submit" className="btn-primary" disabled={loading}
             whileHover={!loading ? { scale:1.02, y:-2 } : {}}
