@@ -190,13 +190,15 @@ export default function ClientBooking() {
   // ── Polling 2: aguarda pagamento Pix ser aprovado ────────
   useEffect(() => {
     if (!confirmedData || confirmedData.status === 'scheduled') return;
-    // Continua polling em 'confirmed' e 'aguardando_pagamento' até virar 'scheduled'
     const interval = setInterval(async () => {
       try {
         const r = await api.get(`/appointments/${confirmedData.id}/status`);
         if (r.data.status === 'scheduled') {
           setConfirmedData(r.data);
           clearInterval(interval);
+        } else if (r.data.status === 'aguardando_pagamento' && confirmedData.status !== 'aguardando_pagamento') {
+          // PIX gerado pela admin — atualiza dados para exibir QR code
+          setConfirmedData(r.data);
         }
       } catch {}
     }, 8000);
