@@ -1440,7 +1440,7 @@ function PromocoesTab() {
     setLoading(true);
     setErro(null);
     api.get('/promotions/all/')
-      .then(r => setPromos(r.data))
+      .then(r => setPromos(Array.isArray(r.data) ? r.data : []))
       .catch(e => setErro(e.response?.data?.detail || 'Erro ao carregar promoções.'))
       .finally(() => setLoading(false));
   };
