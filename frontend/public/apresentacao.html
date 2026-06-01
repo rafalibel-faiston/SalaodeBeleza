@@ -67,16 +67,173 @@
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 14px;
-    padding: 14px 24px;
-    font-size: 0.95rem;
-    color: rgba(255,255,255,0.75);
+    background: linear-gradient(135deg, #d8438b, #a0195e);
+    border-radius: 16px;
+    padding: 16px 32px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
     margin-bottom: 16px;
+    text-decoration: none;
+    box-shadow: 0 8px 28px rgba(160,25,94,0.45);
+    transition: opacity 0.2s, transform 0.15s;
   }
-  .hero-url strong { color: #f9a8d4; }
+  .hero-url:hover { opacity: 0.88; transform: translateY(-1px); }
   .hero-url-label { font-size: 0.72rem; color: rgba(255,255,255,0.35); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 6px; }
+
+  /* ── PHONE MOCKUPS ── */
+  .phones-section {
+    padding: 80px 24px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .phones-scroll {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 48px;
+  }
+  .phone {
+    width: 220px;
+    flex-shrink: 0;
+    background: #1a0a22;
+    border: 2px solid rgba(255,255,255,0.12);
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+    position: relative;
+  }
+  .phone-notch {
+    width: 80px; height: 20px;
+    background: #0f0614;
+    border-radius: 0 0 14px 14px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+  }
+  .phone-screen {
+    background: #fff;
+    min-height: 380px;
+    font-family: 'Outfit', sans-serif;
+  }
+  .phone-label {
+    margin-top: 16px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  /* tela: site da cliente */
+  .s-header {
+    background: linear-gradient(135deg, #d8438b, #a0195e);
+    padding: 14px 16px 10px;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  .s-header small { display: block; font-weight: 400; opacity: 0.75; font-size: 0.65rem; margin-top: 1px; }
+  .s-service-card {
+    margin: 10px 12px 0;
+    background: #fdf2f8;
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(216,67,139,0.15);
+  }
+  .s-service-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .s-service-name { font-size: 0.72rem; font-weight: 700; color: #2d1a2e; }
+  .s-service-price { font-size: 0.65rem; color: #d8438b; font-weight: 600; }
+  .s-btn {
+    display: block;
+    margin: 12px 12px 0;
+    background: linear-gradient(135deg, #d8438b, #a0195e);
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  /* tela: agendamento */
+  .s-form-label { font-size: 0.6rem; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+  .s-form-input {
+    background: #f9f0f6;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.7rem;
+    color: #2d1a2e;
+    margin-bottom: 8px;
+    border: 1px solid rgba(216,67,139,0.2);
+  }
+  .s-calendar-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .s-day {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: #f3e8f0;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: #a0195e;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .s-day.active { background: #d8438b; color: #fff; }
+  .s-day.disabled { background: #eee; color: #ccc; }
+
+  /* tela: painel admin */
+  .s-admin-header {
+    background: #0f0614;
+    padding: 12px 14px 10px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .s-admin-title { font-size: 0.72rem; font-weight: 700; color: #f9a8d4; }
+  .s-admin-badge { background: #d8438b; color: #fff; font-size: 0.55rem; font-weight: 700; padding: 2px 7px; border-radius: 99px; }
+  .s-appt-card {
+    margin: 8px 10px 0;
+    background: #fff;
+    border: 1px solid #f0e0ec;
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+  .s-appt-name { font-size: 0.7rem; font-weight: 700; color: #2d1a2e; }
+  .s-appt-info { font-size: 0.62rem; color: #888; margin-top: 2px; }
+  .s-appt-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .s-appt-btn-ok { background: #d8438b; color: #fff; font-size: 0.58rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; }
+  .s-appt-btn-wpp { background: #25d366; color: #fff; font-size: 0.58rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; }
+
+  /* tela: confirmação pix */
+  .s-pix-box {
+    margin: 10px 12px 0;
+    background: #f9f0f6;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    border: 1px dashed rgba(216,67,139,0.35);
+  }
+  .s-pix-qr {
+    width: 80px; height: 80px;
+    background: #fff;
+    border-radius: 8px;
+    margin: 0 auto 8px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #eee;
+    font-size: 2rem;
+  }
+  .s-pix-title { font-size: 0.7rem; font-weight: 700; color: #2d1a2e; }
+  .s-pix-value { font-size: 0.9rem; font-weight: 900; color: #d8438b; margin-top: 2px; }
+  .s-pix-sub { font-size: 0.58rem; color: #aaa; margin-top: 4px; }
 
   /* ── SECTION ── */
   section {
@@ -275,8 +432,160 @@
     Sistema completo de agendamento online para extensão de cílios e sobrancelhas — do primeiro clique da cliente até a confirmação no WhatsApp.
   </p>
   <div>
-    <div class="hero-url">🌐 <strong>imaginative-simplicity-production-d8e7.up.railway.app</strong></div>
+    <a class="hero-url" href="https://imaginative-simplicity-production-d8e7.up.railway.app" target="_blank" rel="noopener">🌸 Ver o site ao vivo</a>
     <div class="hero-url-label">Site da cliente · Admin em /gerencia</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- MOCKUPS MOBILE -->
+<div class="phones-section">
+  <p class="section-label" style="text-align:center">✦ Na prática</p>
+  <h2 class="section-title" style="text-align:center; max-width:600px; margin:0 auto 8px">Feito para o <span>celular</span></h2>
+  <p style="text-align:center; color:rgba(255,255,255,0.45); font-size:0.9rem">Cliente agenda, profissional confirma — tudo pelo celular, em segundos.</p>
+
+  <div class="phones-scroll">
+
+    <!-- tela 1: catálogo -->
+    <div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen" style="background:#fff4fb; padding-bottom:16px;">
+          <div class="s-header">
+            Catálogo de Serviços
+            <small>Escolha seu serviço</small>
+          </div>
+          <div class="s-service-card">
+            <div class="s-service-icon">✨</div>
+            <div>
+              <div class="s-service-name">Volume Russo</div>
+              <div class="s-service-price">R$ 180 · 2h</div>
+            </div>
+          </div>
+          <div class="s-service-card">
+            <div class="s-service-icon">🌸</div>
+            <div>
+              <div class="s-service-name">Fio a Fio</div>
+              <div class="s-service-price">R$ 120 · 1h30</div>
+            </div>
+          </div>
+          <div class="s-service-card">
+            <div class="s-service-icon">👁</div>
+            <div>
+              <div class="s-service-name">Design de Sobrancelha</div>
+              <div class="s-service-price">R$ 60 · 45min</div>
+            </div>
+          </div>
+          <div class="s-btn">Agendar agora →</div>
+        </div>
+      </div>
+      <div class="phone-label">Site da cliente</div>
+    </div>
+
+    <!-- tela 2: agendamento -->
+    <div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen" style="background:#fff; padding:12px 12px 16px;">
+          <div style="font-size:0.72rem; font-weight:700; color:#2d1a2e; margin-bottom:10px;">📅 Escolha a data</div>
+          <div class="s-calendar-row">
+            <div class="s-day disabled">Seg</div>
+            <div class="s-day">Ter</div>
+            <div class="s-day active">Qua</div>
+            <div class="s-day">Qui</div>
+            <div class="s-day">Sex</div>
+          </div>
+          <div style="font-size:0.62rem; color:#d8438b; font-weight:600; margin-bottom:10px;">Horários disponíveis</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+            <span style="background:#fdf2f8; border:1px solid rgba(216,67,139,0.3); color:#a0195e; font-size:0.62rem; font-weight:700; padding:5px 9px; border-radius:8px;">09:00</span>
+            <span style="background:#d8438b; color:#fff; font-size:0.62rem; font-weight:700; padding:5px 9px; border-radius:8px;">10:30</span>
+            <span style="background:#fdf2f8; border:1px solid rgba(216,67,139,0.3); color:#a0195e; font-size:0.62rem; font-weight:700; padding:5px 9px; border-radius:8px;">14:00</span>
+            <span style="background:#fdf2f8; border:1px solid rgba(216,67,139,0.3); color:#a0195e; font-size:0.62rem; font-weight:700; padding:5px 9px; border-radius:8px;">16:00</span>
+          </div>
+          <div class="s-form-label">Seu nome</div>
+          <div class="s-form-input">Mariana Santos</div>
+          <div class="s-form-label">WhatsApp</div>
+          <div class="s-form-input">(14) 99999-0000</div>
+          <div class="s-btn" style="display:block; background:linear-gradient(135deg,#d8438b,#a0195e); color:#fff; text-align:center; padding:10px; border-radius:10px; font-size:0.72rem; font-weight:700; margin-top:4px;">Confirmar agendamento</div>
+        </div>
+      </div>
+      <div class="phone-label">Agendamento</div>
+    </div>
+
+    <!-- tela 3: painel admin -->
+    <div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen" style="background:#f8f0fb; padding-bottom:16px;">
+          <div class="s-admin-header">
+            <div class="s-admin-title">Agenda — Hoje</div>
+            <div class="s-admin-badge">3 novos</div>
+          </div>
+          <div style="padding:4px 0;">
+            <div class="s-appt-card">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <div class="s-appt-name">Mariana Santos</div>
+                  <div class="s-appt-info">10:30 · Volume Russo · R$180</div>
+                </div>
+                <span style="background:#fef9c3; color:#92400e; font-size:0.55rem; font-weight:700; padding:2px 7px; border-radius:99px;">Pendente</span>
+              </div>
+              <div class="s-appt-actions">
+                <div class="s-appt-btn-ok">✓ Confirmar</div>
+                <div class="s-appt-btn-wpp">WhatsApp</div>
+              </div>
+            </div>
+            <div class="s-appt-card" style="margin-top:6px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <div class="s-appt-name">Letícia Gomes</div>
+                  <div class="s-appt-info">14:00 · Design Sobrancelha</div>
+                </div>
+                <span style="background:#dcfce7; color:#166534; font-size:0.55rem; font-weight:700; padding:2px 7px; border-radius:99px;">Pago ✓</span>
+              </div>
+            </div>
+            <div class="s-appt-card" style="margin-top:6px;">
+              <div style="display:flex; justify-content:space-between;">
+                <div>
+                  <div class="s-appt-name">Camila Freitas</div>
+                  <div class="s-appt-info">16:00 · Fio a Fio · R$120</div>
+                </div>
+                <span style="background:#dbeafe; color:#1e40af; font-size:0.55rem; font-weight:700; padding:2px 7px; border-radius:99px;">Confirmado</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">Painel admin</div>
+    </div>
+
+    <!-- tela 4: pix -->
+    <div>
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen" style="background:#fff; padding-bottom:16px;">
+          <div class="s-header" style="text-align:center; padding:14px;">
+            ✅ Agendamento confirmado!
+            <small style="margin-top:4px;">Pague o sinal para garantir</small>
+          </div>
+          <div class="s-pix-box">
+            <div class="s-pix-qr">⬛</div>
+            <div class="s-pix-title">Sinal via Pix</div>
+            <div class="s-pix-value">R$ 50,00</div>
+            <div class="s-pix-sub">QR Code gerado automaticamente</div>
+          </div>
+          <div style="margin: 10px 12px 0; background:#f0fdf4; border:1px solid rgba(37,211,102,0.3); border-radius:10px; padding:10px; font-size:0.65rem; color:#166534; text-align:center;">
+            ✓ Pagamento identificado automaticamente
+          </div>
+          <div style="margin:8px 12px 0; background:#d8438b; color:#fff; text-align:center; padding:10px; border-radius:10px; font-size:0.72rem; font-weight:700;">
+            💬 Falar no WhatsApp
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">Confirmação + Pix</div>
+    </div>
+
   </div>
 </div>
 
