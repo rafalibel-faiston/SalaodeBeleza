@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Beauty Studio — Sistema de Agendamento</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Fraunces:ital,wght@1,400&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: #0f0614;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 24px;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(216,67,139,0.28) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 50% at 80% 80%, rgba(160,25,94,0.18) 0%, transparent 60%),
+                #0f0614;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(216,67,139,0.15);
+    border: 1px solid rgba(216,67,139,0.35);
+    color: #f9a8d4;
+    padding: 6px 20px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+  .hero h1 {
+    font-size: clamp(2.8rem, 8vw, 5.5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    margin-bottom: 12px;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, #f472b6, #d8438b, #a0195e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 2.5vw, 1.4rem);
+    color: rgba(255,255,255,0.55);
+    max-width: 520px;
+    line-height: 1.65;
+    margin: 0 auto 48px;
+  }
+  .hero-url {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 14px 24px;
+    font-size: 0.95rem;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 16px;
+  }
+  .hero-url strong { color: #f9a8d4; }
+  .hero-url-label { font-size: 0.72rem; color: rgba(255,255,255,0.35); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 6px; }
+
+  /* ── SECTION ── */
+  section {
+    padding: 80px 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #f472b6;
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .section-title span {
+    background: linear-gradient(135deg, #f472b6, #d8438b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .section-sub {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.5);
+    max-width: 540px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(216,67,139,0.3), transparent);
+  }
+
+  /* ── GRID ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+  /* ── CARD ── */
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 28px 24px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .card:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(216,67,139,0.3);
+  }
+  .card-icon { font-size: 2rem; margin-bottom: 14px; }
+  .card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+  .card p { font-size: 0.88rem; color: rgba(255,255,255,0.5); line-height: 1.65; }
+
+  .card-pink {
+    background: linear-gradient(135deg, rgba(216,67,139,0.12), rgba(160,25,94,0.08));
+    border-color: rgba(216,67,139,0.25);
+  }
+
+  /* ── BENEFIT ROWS ── */
+  .benefit {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding: 24px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .benefit:last-child { border-bottom: none; }
+  .benefit-num {
+    flex-shrink: 0;
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #d8438b, #a0195e);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 1rem;
+    box-shadow: 0 6px 18px rgba(160,25,94,0.4);
+  }
+  .benefit h4 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .benefit p { font-size: 0.88rem; color: rgba(255,255,255,0.5); line-height: 1.6; }
+
+  /* ── FLOW ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .flow-item {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    position: relative;
+  }
+  .flow-item::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 44px;
+    width: 2px;
+    height: calc(100% + 0px);
+    background: linear-gradient(180deg, rgba(216,67,139,0.4), rgba(216,67,139,0.05));
+  }
+  .flow-item:last-child::before { display: none; }
+  .flow-dot {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: rgba(216,67,139,0.15);
+    border: 2px solid rgba(216,67,139,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    margin-bottom: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .flow-content { padding: 8px 0 32px; }
+  .flow-content h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+  .flow-content p { font-size: 0.85rem; color: rgba(255,255,255,0.45); line-height: 1.55; }
+
+  /* ── STAT ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stat-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 24px 20px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 2.2rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #f472b6, #d8438b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
+
+  /* ── CTA ── */
+  .cta-section {
+    text-align: center;
+    padding: 80px 24px 100px;
+    background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(216,67,139,0.18) 0%, transparent 70%);
+  }
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #d8438b, #a0195e);
+    color: #fff;
+    padding: 16px 36px;
+    border-radius: 16px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 8px 28px rgba(160,25,94,0.45);
+    margin-top: 32px;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  /* ── QUOTE ── */
+  .quote {
+    background: rgba(216,67,139,0.08);
+    border-left: 3px solid #d8438b;
+    border-radius: 0 16px 16px 0;
+    padding: 20px 24px;
+    margin: 32px 0;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 1.1rem;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 640px) {
+    .grid-2, .grid-3, .stat-grid { grid-template-columns: 1fr; }
+    section { padding: 60px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">✦ Sistema para Estúdios de Beleza ✦</div>
+  <h1>Seu estúdio,<br /><span>no digital.</span></h1>
+  <p class="hero-sub">
+    Sistema completo de agendamento online para extensão de cílios e sobrancelhas — do primeiro clique da cliente até a confirmação no WhatsApp.
+  </p>
+  <div>
+    <div class="hero-url">🌐 <strong>imaginative-simplicity-production-d8e7.up.railway.app</strong></div>
+    <div class="hero-url-label">Site da cliente · Admin em /gerencia</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- O QUE É -->
+<section>
+  <p class="section-label">✦ Visão Geral</p>
+  <h2 class="section-title">O que é o <span>sistema?</span></h2>
+  <p class="section-sub">
+    Uma plataforma completa com dois ambientes integrados: o site público para clientes agendarem, e o painel privado de gestão do estúdio.
+  </p>
+
+  <div class="grid-2">
+    <div class="card card-pink">
+      <div class="card-icon">💅</div>
+      <h3>Site da Cliente</h3>
+      <p>Catálogo de serviços com fotos, preços e descrições. A cliente agenda pelo celular em menos de 2 minutos, sem precisar entrar no WhatsApp primeiro.</p>
+    </div>
+    <div class="card card-pink">
+      <div class="card-icon">🗂</div>
+      <h3>Painel da Profissional</h3>
+      <p>Dashboard completo para gerenciar agenda, clientes, catálogo de serviços, financeiro e configurações — tudo em um só lugar, no celular ou computador.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- FLUXO -->
+<section>
+  <p class="section-label">✦ Como funciona</p>
+  <h2 class="section-title">Fluxo de <span>agendamento</span></h2>
+  <p class="section-sub">Da solicitação à confirmação, sem trabalho manual.</p>
+
+  <div class="flow">
+    <div class="flow-item">
+      <div class="flow-dot">📱</div>
+      <div class="flow-content">
+        <h4>Cliente acessa o site</h4>
+        <p>Navega pelo catálogo, vê os serviços, preços e duração. Escolhe data e horário disponíveis.</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-dot">📋</div>
+      <div class="flow-content">
+        <h4>Preenche o formulário</h4>
+        <p>Nome, WhatsApp e o serviço desejado — escolhido visualmente, não num dropdown genérico.</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-dot">💬</div>
+      <div class="flow-content">
+        <h4>Recebe tela de confirmação</h4>
+        <p>Pedido enviado! A cliente vê os detalhes e um botão direto para o WhatsApp do estúdio, sem ansiedade de ficar esperando.</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-dot">✅</div>
+      <div class="flow-content">
+        <h4>Profissional confirma no painel</h4>
+        <p>Ela vê o agendamento, clica em Confirmar — o WhatsApp já abre com a mensagem de confirmação pronta pra enviar.</p>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-dot">🎉</div>
+      <div class="flow-content">
+        <h4>Cliente recebe confirmação</h4>
+        <p>Data, horário, serviço e endereço confirmados pelo WhatsApp. Pronto.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- FUNCIONALIDADES -->
+<section>
+  <p class="section-label">✦ Funcionalidades</p>
+  <h2 class="section-title">Tudo que o <span>sistema faz</span></h2>
+  <p class="section-sub">Cada detalhe pensado para o dia a dia de um estúdio de beleza.</p>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon">📅</div>
+      <h3>Agenda Inteligente</h3>
+      <p>Calendário mensal, visão do dia, filtro de próximos agendamentos e histórico completo.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">👩‍💼</div>
+      <h3>Ficha da Cliente</h3>
+      <p>Restrições médicas, alergias a henna, volume favorito, histórico de faltas e cancelamentos.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">💳</div>
+      <h3>Sinal via Pix</h3>
+      <p>QR Code gerado automaticamente ao confirmar. Garante o compromisso e reduz faltas.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📊</div>
+      <h3>Estatísticas</h3>
+      <p>Faturamento por período, serviços mais vendidos, taxa de faltas e cancela­mentos.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔒</div>
+      <h3>Bloqueio de Agenda</h3>
+      <p>Fecha dias ou períodos com um clique. As datas bloqueadas não aparecem para agendamento.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📱</div>
+      <h3>100% Mobile</h3>
+      <p>Tanto o site da cliente quanto o painel da profissional funcionam perfeitamente no celular.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🗂</div>
+      <h3>Catálogo Gerenciável</h3>
+      <p>Adiciona, edita e desativa serviços com preço, sinal e duração direto do painel.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">💰</div>
+      <h3>Controle Financeiro</h3>
+      <p>Visão de receita, sinal recebido, saldo pendente e métodos de pagamento.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>Reagendamento</h3>
+      <p>Reagenda qualquer atendimento em dois cliques, direto na ficha do agendamento.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- BENEFÍCIOS -->
+<section>
+  <p class="section-label">✦ Benefícios</p>
+  <h2 class="section-title">Por que vale <span>a pena?</span></h2>
+
+  <div class="benefit">
+    <div class="benefit-num">1</div>
+    <div>
+      <h4>Menos mensagens, mais tempo</h4>
+      <p>Sem precisar responder "qual horário tem?" no WhatsApp o dia todo. A cliente resolve sozinha e você recebe a solicitação pronta para aprovar.</p>
+    </div>
+  </div>
+
+  <div class="benefit">
+    <div class="benefit-num">2</div>
+    <div>
+      <h4>Zero confusão de agenda</h4>
+      <p>Todos os agendamentos em um único painel. Nada de lista no caderno, print de conversa ou planilha desatualizada.</p>
+    </div>
+  </div>
+
+  <div class="benefit">
+    <div class="benefit-num">3</div>
+    <div>
+      <h4>Menos faltas com o sinal</h4>
+      <p>O sistema gera um Pix automático de garantia ao confirmar. Quem paga o sinal raramente falta.</p>
+    </div>
+  </div>
+
+  <div class="benefit">
+    <div class="benefit-num">4</div>
+    <div>
+      <h4>Aparência profissional</h4>
+      <p>Um site elegante passa segurança para novas clientes. Muito mais profissional do que agendar só pelo Instagram ou WhatsApp.</p>
+    </div>
+  </div>
+
+  <div class="benefit">
+    <div class="benefit-num">5</div>
+    <div>
+      <h4>Histórico de cada cliente</h4>
+      <p>Sabe quem tem alergia a henna, quem já deu falta duas vezes, qual é o volume preferido de cada uma — sem depender de memória.</p>
+    </div>
+  </div>
+
+  <div class="benefit">
+    <div class="benefit-num">6</div>
+    <div>
+      <h4>Domínio próprio a qualquer momento</h4>
+      <p>Quando quiser, conecta um endereço personalizado (ex: seuestudio.com.br) por cerca de R$ 40/ano. O site já está pronto.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- NÚMEROS -->
+<section style="text-align: center; padding: 80px 24px;">
+  <p class="section-label" style="text-align:center">✦ Em números</p>
+  <h2 class="section-title" style="text-align:center; margin-bottom:48px">O que o sistema <span>entrega</span></h2>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-num">24h</div>
+      <div class="stat-label">Agendamento disponível por dia</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">&lt;2min</div>
+      <div class="stat-label">Tempo para a cliente agendar</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">R$40</div>
+      <div class="stat-label">Custo anual de domínio próprio</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">0</div>
+      <div class="stat-label">Mensalidade do sistema</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- CTA -->
+<div class="cta-section">
+  <p class="section-label" style="text-align:center">✦ Acesso</p>
+  <h2 class="section-title" style="text-align:center">Acesse agora</h2>
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 32px;">
+    <div class="card" style="max-width: 480px; width: 100%; text-align: left;">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+        <span style="font-size:1.5rem">🌸</span>
+        <div>
+          <p style="font-weight:700; font-size:0.95rem;">Site da Cliente</p>
+          <p style="color: rgba(255,255,255,0.4); font-size: 0.82rem;">imaginative-simplicity-production-d8e7.up.railway.app</p>
+        </div>
+      </div>
+      <p class="card p" style="font-size:0.85rem; color: rgba(255,255,255,0.45);">Catálogo de serviços, agendamento online, confirmação via WhatsApp.</p>
+    </div>
+
+    <div class="card" style="max-width: 480px; width: 100%; text-align: left;">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+        <span style="font-size:1.5rem">🔐</span>
+        <div>
+          <p style="font-weight:700; font-size:0.95rem;">Painel da Profissional</p>
+          <p style="color: rgba(255,255,255,0.4); font-size: 0.82rem;">…railway.app/gerencia</p>
+        </div>
+      </div>
+      <p class="card p" style="font-size:0.85rem; color: rgba(255,255,255,0.45);">Agenda, clientes, catálogo, financeiro e configurações — acesso com senha.</p>
+    </div>
+  </div>
+
+  <p style="margin-top: 60px; color: rgba(255,255,255,0.25); font-size: 0.8rem;">
+    Sistema de Agendamento para Estúdios de Beleza
+  </p>
+</div>
+
+</body>
+</html>

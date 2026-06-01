@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+// Em produção o Express do frontend faz proxy das chamadas — usa URL relativa
+// Em desenvolvimento usa VITE_API_URL ou localhost
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:8000'),
   headers: { 'Content-Type': 'application/json' },
 });
 

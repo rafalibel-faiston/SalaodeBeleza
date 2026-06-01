@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../api/client';
 import AdminLogin from './AdminLogin';
 import {
@@ -7,6 +7,16 @@ import {
 } from 'recharts';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+const useMobile = () => {
+  const [m, setM] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 768);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return m;
+};
 
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v ?? 0);
@@ -27,6 +37,11 @@ const fmtHora = (s) => {
   return `${d.getHours()}h${m > 0 ? String(m).padStart(2, '0') : ''}`;
 };
 
+const fmtHoraPartes = (s) => {
+  const d = new Date(s);
+  return { h: String(d.getHours()).padStart(2, '0'), m: String(d.getMinutes()).padStart(2, '0') };
+};
+
 const fmtTel = (p) => {
   const d = (p || '').replace(/\D/g, '');
   return d.startsWith('55') ? d : `55${d}`;
@@ -43,6 +58,16 @@ const msgConfirmacao = (apt) => {
 const msgLembrete = (apt) =>
   `Oi, meu amor! ✨\n\nPassando pra te lembrar do seu horário comigo.\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Local: Rua Ari Carneiro Fernandes 155\n\nTe espero pra te deixar ainda mais linda ✨💅\n\nPeço que chegue no horário certinho, tá bom? 💕\nQualquer imprevisto, me avisa.`;
 
+const msgPix = (apt) => {
+  const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
+  return `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento do sinal de ${fmt(sinal)} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${apt.financial?.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
+};
+
+const msgPagamentoConfirmado = (apt) => {
+  const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
+  return `Oi, ${apt.client?.name?.split(' ')[0]}! 🎉\n\nSeu pagamento foi confirmado e sua vaga está garantida!\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Rua Ari Carneiro Fernandes 155\n💅 ${apt.service?.name}\n✅ Sinal recebido: ${fmt(sinal)}\n\nTe espero lá! 💕✨`;
+};
+
 const CORES = ['#d8438b', '#128C7E', '#f59e0b', '#6366f1', '#10b981', '#ef4444'];
 
 const timeSlots = [];
@@ -51,45 +76,307 @@ for (let h = 8; h < 20; h++) {
   if (h < 19) timeSlots.push(`${String(h).padStart(2, '0')}:30`);
 }
 
+// ─── Design Tokens ──────────────────────────────────────────────────────────
+
+const C = {
+  primary: '#d8438b',
+  primaryDark: '#a0195e',
+  text: '#0f0614',
+  textMuted: '#6b7280',
+  bg: 'linear-gradient(145deg, #fce4ef 0%, #f5e8fb 35%, #ede8fb 65%, #e8f0fd 100%)',
+  white: '#ffffff',
+  glass: 'rgba(255,255,255,0.48)',
+  glassBorder: 'rgba(255,255,255,0.55)',
+  border: '#e9ddf2',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#dc2626',
+  dangerBg: '#fef2f2',
+  warnBg: '#fefce8',
+  successBg: '#ecfdf5',
+  teal: '#0d9488',
+  tealBg: '#f0fdfa',
+  fontDisplay: "'Syne', sans-serif",
+  fontSans: "'Outfit', sans-serif",
+  fontMono: "'JetBrains Mono', monospace",
+  fontSerif: "'Fraunces', serif",
+};
+
+const gradientBtn = `linear-gradient(135deg, ${C.primaryDark} 0%, ${C.primary} 60%, #e055a0 100%)`;
+const gradientBtnHover = `linear-gradient(135deg, #8a1250 0%, ${C.primaryDark} 60%, ${C.primary} 100%)`;
+const glassBox = { background: C.glass, backdropFilter: 'blur(28px) saturate(140%)', WebkitBackdropFilter: 'blur(28px) saturate(140%)', border: `1px solid ${C.glassBorder}` };
+
 // ─── UI reutilizável ─────────────────────────────────────────────────────────
 
-const Card = ({ children, style }) => (
-  <div style={{ background: '#fff', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.06)', padding: '20px', ...style }}>
+const Card = ({ children, style, glow = false }) => (
+  <div
+    className={glow ? 'glow-card' : 'glass-panel'}
+    style={{ padding: '20px', fontFamily: C.fontSans, ...style }}
+  >
     {children}
   </div>
 );
 
 const StatCard = ({ label, value, sub, color }) => (
-  <Card style={{ textAlign: 'center', borderTop: `4px solid ${color || 'var(--primary-color)'}` }}>
-    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '6px' }}>{label}</p>
-    <p style={{ fontSize: '1.8rem', fontWeight: '800', color: color || 'var(--primary-color)' }}>{value}</p>
-    {sub && <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>{sub}</p>}
-  </Card>
+  <div style={{
+    background: C.white,
+    borderRadius: '16px',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+    padding: '20px',
+    textAlign: 'center',
+    borderTop: `4px solid ${color || C.primary}`,
+    transition: 'transform 0.2s, box-shadow 0.2s',
+  }}
+    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.13)'; }}
+    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)'; }}
+  >
+    <p style={{ color: C.textMuted, fontSize: '0.82rem', marginBottom: '8px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+    <p style={{ fontSize: '1.8rem', fontWeight: '800', color: color || C.primary, lineHeight: 1 }}>{value}</p>
+    {sub && <p style={{ color: C.textMuted, fontSize: '0.78rem', marginTop: '6px' }}>{sub}</p>}
+  </div>
 );
 
 const BtnWpp = ({ label, color, onClick }) => (
-  <button onClick={onClick} style={{ flex: 1, minWidth: '140px', padding: '9px 12px', background: color, color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.82rem', cursor: 'pointer' }}>
+  <button onClick={onClick} className="btn-tactile animate-float" style={{
+    flex: 1, minWidth: '140px', padding: '9px 12px',
+    background: color, color: '#fff', border: 'none',
+    borderRadius: '12px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer',
+    fontFamily: C.fontSans,
+    boxShadow: `0 4px 14px ${color}55`,
+    transition: 'opacity 0.2s, transform 0.12s',
+  }}
+    onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.boxShadow = `0 6px 20px ${color}77`; }}
+    onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.boxShadow = `0 4px 14px ${color}55`; }}
+  >
     {label}
   </button>
 );
 
-const Badge = ({ label, color = 'var(--primary-color)', bg = '#fdf1f6' }) => (
-  <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', background: bg, color }}>
+const Badge = ({ label, color = C.primary, bg = '#fdf1f6' }) => (
+  <span style={{
+    display: 'inline-block', padding: '3px 10px', borderRadius: '20px',
+    fontSize: '0.73rem', fontWeight: '700', background: bg, color,
+  }}>
     {label}
   </span>
 );
 
-const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.9rem', boxSizing: 'border-box' };
+const PrimaryBtn = ({ children, onClick, disabled, style = {} }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className="btn-tactile"
+    style={{
+      padding: '10px 22px',
+      background: disabled ? '#d1d5db' : gradientBtn,
+      color: '#fff', border: 'none', borderRadius: '12px',
+      fontWeight: '700', fontSize: '0.88rem', cursor: disabled ? 'not-allowed' : 'pointer',
+      fontFamily: C.fontSans,
+      boxShadow: disabled ? 'none' : '0 4px 14px rgba(160,25,94,0.35)',
+      transition: 'opacity 0.2s, transform 0.12s, box-shadow 0.2s',
+      ...style,
+    }}
+    onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = gradientBtnHover; e.currentTarget.style.boxShadow = '0 6px 20px rgba(160,25,94,0.45)'; } }}
+    onMouseLeave={e => { if (!disabled) { e.currentTarget.style.background = gradientBtn; e.currentTarget.style.boxShadow = '0 4px 14px rgba(160,25,94,0.35)'; } }}
+  >
+    {children}
+  </button>
+);
+
+const inputStyle = {
+  width: '100%', padding: '10px 14px', borderRadius: '10px',
+  border: `1px solid ${C.border}`, fontSize: '0.9rem',
+  boxSizing: 'border-box', color: C.text, outline: 'none',
+  transition: 'border-color 0.2s',
+};
 const selectStyle = { ...inputStyle };
+
+// ─── Calendário mensal ───────────────────────────────────────────────────────
+
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+function MonthCalendar({ appointments, selectedDate, onSelectDate }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  };
+
+  // Separate sets: confirmed/scheduled vs pending
+  const daysScheduled = new Set();
+  const daysPending = new Set();
+  appointments.forEach(a => {
+    const d = new Date(a.scheduled_at);
+    if (d.getFullYear() === viewYear && d.getMonth() === viewMonth) {
+      if (a.status === 'pending') daysPending.add(d.getDate());
+      else daysScheduled.add(d.getDate());
+    }
+  });
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const isToday = (d) => d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+  const isSelected = (d) => {
+    if (!selectedDate) return false;
+    const [y, m, day] = selectedDate.split('-').map(Number);
+    return d === day && viewMonth === m - 1 && viewYear === y;
+  };
+
+  const handleDayClick = (d) => {
+    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    onSelectDate(selectedDate === dateStr ? null : dateStr);
+  };
+
+  return (
+    <Card glow style={{ padding: '18px', minWidth: '290px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <button onClick={prevMonth} className="btn-tactile" style={{ background: 'rgba(216,67,139,0.08)', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: C.primary, padding: '6px 10px', borderRadius: '10px', transition: 'all 0.2s', lineHeight: 1 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(216,67,139,0.16)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(216,67,139,0.08)'}
+        >‹</button>
+        <span style={{ fontWeight: '700', fontSize: '0.95rem', fontFamily: C.fontSans, color: C.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '0.9rem' }}>📅</span>
+          {MESES[viewMonth]} {viewYear}
+        </span>
+        <button onClick={nextMonth} className="btn-tactile" style={{ background: 'rgba(216,67,139,0.08)', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: C.primary, padding: '6px 10px', borderRadius: '10px', transition: 'all 0.2s', lineHeight: 1 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(216,67,139,0.16)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(216,67,139,0.08)'}
+        >›</button>
+      </div>
+
+      {/* Dias da semana */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+        {DIAS_SEMANA.map(d => (
+          <div key={d} style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: '700', color: C.textMuted, padding: '4px 0', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Células dos dias */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+        {cells.map((d, i) => {
+          if (!d) return <div key={`e-${i}`} />;
+          const hasPending = daysPending.has(d);
+          const hasScheduled = daysScheduled.has(d);
+          const today_ = isToday(d);
+          const selected = isSelected(d);
+
+          let bg = 'transparent';
+          let color = C.text;
+          let border = 'none';
+
+          if (selected) { bg = gradientBtn; color = '#fff'; border = 'none'; }
+          else if (today_) { bg = 'rgba(216,67,139,0.1)'; color = C.primaryDark; border = `1.5px solid ${C.primary}`; }
+
+          const dotColor = hasPending ? C.warning : hasScheduled ? C.primary : null;
+
+          return (
+            <button
+              key={d}
+              onClick={() => handleDayClick(d)}
+              className="btn-tactile"
+              style={{
+                position: 'relative', background: bg, color, border,
+                borderRadius: '9px', padding: '6px 2px',
+                fontSize: '0.82rem', fontWeight: today_ || selected ? '700' : '500',
+                cursor: 'pointer', textAlign: 'center', lineHeight: 1.2,
+                fontFamily: C.fontSans,
+                transition: 'all 0.15s',
+                boxShadow: selected ? '0 3px 10px rgba(160,25,94,0.35)' : 'none',
+              }}
+              onMouseEnter={e => { if (!selected) { e.currentTarget.style.background = 'rgba(216,67,139,0.08)'; e.currentTarget.style.color = C.primaryDark; } }}
+              onMouseLeave={e => { if (!selected) { e.currentTarget.style.background = bg; e.currentTarget.style.color = color; } }}
+            >
+              {d}
+              {dotColor && (
+                <span style={{
+                  display: 'block', width: '5px', height: '5px',
+                  borderRadius: '50%', background: selected ? 'rgba(255,255,255,0.8)' : dotColor,
+                  margin: '2px auto 0',
+                }} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Legenda */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.73rem', color: C.textMuted }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: C.primary, display: 'inline-block', flexShrink: 0 }} />
+          Agendado
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.73rem', color: C.textMuted }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: C.warning, display: 'inline-block', flexShrink: 0 }} />
+          Pendente
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.73rem', color: C.textMuted }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', border: `1.5px solid ${C.primary}`, background: '#fdf1f6', display: 'inline-block', flexShrink: 0 }} />
+          Hoje ({today.getDate()} {MESES[today.getMonth()].substring(0, 3)})
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 // ─── ABA: AGENDA ─────────────────────────────────────────────────────────────
 
 function AgendaTab({ appointments, onRefresh }) {
+  const isMobile = useMobile();
   const [reagendando, setReagendando] = useState(null);
   const [novaData, setNovaData] = useState('');
   const [novaHora, setNovaHora] = useState('');
   const [salvando, setSalvando] = useState(false);
-  const [filtro, setFiltro] = useState('scheduled');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  });
+  const [activeFilter, setActiveFilter] = useState('proximos');
+
+  const now = new Date();
+  const pendentes   = appointments.filter(a => a.status === 'pending');
+  const confirmados = appointments.filter(a => ['confirmed', 'aguardando_pagamento', 'scheduled', 'completed'].includes(a.status));
+  const proximos    = appointments
+    .filter(a => new Date(a.scheduled_at) >= now && !['rejected', 'cancelled', 'no_show'].includes(a.status))
+    .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+
+  const aceitar = async (apt) => {
+    if (!window.confirm(`Aceitar agendamento de ${apt.client?.name} e gerar Pix?`)) return;
+    try {
+      const { data } = await api.patch(`/appointments/${apt.id}/status`, { status: 'aguardando_pagamento' });
+      onRefresh();
+      if (data.pix_copia_cola) {
+        const sinal = apt.financial?.total_value - apt.financial?.balance_due || 0;
+        const pixMsg = `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário foi confirmado! Para garantir sua vaga, faça o pagamento ${sinal > 0 ? `do sinal de ${fmt(sinal)}` : `de ${fmt(apt.financial?.total_value)}`} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${data.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
+        abrirWpp(apt.client?.phone, pixMsg);
+      } else {
+        alert(data.pix_error ? `Erro ao gerar Pix: ${data.pix_error}` : 'Pix não pôde ser gerado. Verifique as configurações do Mercado Pago.');
+      }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao aceitar agendamento.'); }
+  };
+
+  const recusar = async (apt) => {
+    if (!window.confirm(`Recusar agendamento de ${apt.client?.name}? A cliente será avisada na tela de espera.`)) return;
+    try {
+      await api.patch(`/appointments/${apt.id}/status`, { status: 'rejected' });
+      onRefresh();
+    } catch { alert('Erro ao recusar.'); }
+  };
 
   const confirmarReagendamento = async (apt) => {
     if (!novaData || !novaHora) return alert('Escolha data e horário.');
@@ -119,108 +406,433 @@ function AgendaTab({ appointments, onRefresh }) {
     } catch { alert('Erro ao cancelar.'); }
   };
 
-  const filtros = [
-    { id: 'scheduled', label: '📅 Próximos' },
-    { id: 'no_show',   label: '🚫 Faltas' },
-    { id: 'todos',     label: 'Todos' },
-  ];
+  const dayApts = selectedDate
+    ? appointments.filter(a => {
+        const d = new Date(a.scheduled_at);
+        const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return ds === selectedDate;
+      }).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
+    : [];
 
-  const lista = appointments.filter(a => filtro === 'todos' ? true : a.status === filtro);
+  const confirmedDayApts = dayApts.filter(a => ['confirmed', 'aguardando_pagamento', 'scheduled'].includes(a.status));
 
-  return (
-    <div style={{ display: 'grid', gap: '16px' }}>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-        {filtros.map(f => (
-          <button key={f.id} onClick={() => setFiltro(f.id)} style={{
-            padding: '7px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer',
-            background: filtro === f.id ? 'var(--primary-color)' : '#eee',
-            color: filtro === f.id ? '#fff' : 'var(--text-muted)',
-            fontWeight: filtro === f.id ? '700' : '400', fontSize: '0.85rem'
-          }}>{f.label}</button>
-        ))}
-        <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          {lista.length} registro{lista.length !== 1 ? 's' : ''}
-        </span>
-      </div>
+  const filteredList = activeFilter === 'pendentes'
+    ? pendentes
+    : activeFilter === 'confirmados'
+    ? confirmados
+    : activeFilter === 'proximos'
+    ? proximos
+    : [...appointments].sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
 
-      {lista.length === 0 && <p style={{ color: 'var(--text-muted)' }}>Nenhum registro para este filtro.</p>}
+  const fmtSelectedDate = selectedDate
+    ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '';
 
-      {lista.map(apt => (
-        <Card key={apt.id} style={{
-          borderLeft: `5px solid ${apt.status === 'no_show' ? '#dc2626' : apt.client?.is_blocked ? '#f59e0b' : 'var(--primary-color)'}`
+  const renderDayCard = (apt) => {
+    const t = fmtHoraPartes(apt.scheduled_at);
+    return (
+      <div key={apt.id} style={{
+        display: 'flex', gap: '14px', alignItems: 'flex-start',
+        ...glassBox,
+        borderRadius: '16px',
+        border: `1px solid ${apt.status === 'no_show' ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.55)'}`,
+        padding: '16px',
+        marginBottom: '10px',
+        fontFamily: C.fontSans,
+        transition: 'box-shadow 0.2s, transform 0.15s',
+      }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(216,67,139,0.14)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}
+      >
+        {/* Time bubble */}
+        <div style={{
+          flexShrink: 0,
+          background: apt.status === 'no_show'
+            ? 'linear-gradient(135deg, #dc2626, #b91c1c)'
+            : 'linear-gradient(135deg, #0d9488, #059669)',
+          color: '#fff',
+          borderRadius: '14px',
+          padding: '10px 10px',
+          textAlign: 'center',
+          minWidth: '56px',
+          fontWeight: '800',
+          lineHeight: 1.15,
+          boxShadow: apt.status === 'no_show' ? '0 4px 12px rgba(220,38,38,0.4)' : '0 4px 12px rgba(13,148,136,0.4)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h3 style={{ color: 'var(--text-main)', fontSize: '1.05rem', margin: 0 }}>{apt.client?.name}</h3>
-              {apt.client?.is_blocked && <Badge label="🚫 Bloqueada" color="#dc2626" bg="#fee2e2" />}
-              {apt.status === 'no_show' && <Badge label="Falta" color="#dc2626" bg="#fee2e2" />}
-            </div>
-            <span style={{ background: '#fdf1f6', color: 'var(--primary-color)', padding: '4px 14px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem' }}>
-              {fmtDate(apt.scheduled_at)}
-            </span>
-          </div>
+          <div style={{ fontSize: '1rem', fontFamily: C.fontMono }}>{t.h}</div>
+          <div style={{ fontSize: '0.8rem', fontFamily: C.fontMono, opacity: 0.9 }}>{t.m}</div>
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '12px' }}>
-            <p>📱 {apt.client?.phone}</p>
-            <p>💅 {apt.service?.name}</p>
-            <p>💰 Total: <strong>{fmt(apt.financial?.total_value)}</strong></p>
-            <p style={{ color: '#d9534f', fontWeight: 'bold' }}>🏷️ Receber: {fmt(apt.financial?.balance_due)}</p>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '3px' }}>
+            <span style={{ fontWeight: '700', color: C.text, fontSize: '0.95rem', fontFamily: C.fontSans }}>{apt.client?.name}</span>
+            {apt.status === 'no_show' && <Badge label="Falta" color={C.danger} bg={C.dangerBg} />}
+            {apt.client?.is_blocked && <Badge label="Bloqueada" color={C.danger} bg={C.dangerBg} />}
           </div>
-
+          <p style={{ margin: 0, color: C.textMuted, fontSize: '0.83rem' }}>💅 {apt.service?.name}</p>
           {apt.client?.medical_restrictions && (
-            <div style={{ background: '#fff3cd', color: '#856404', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '12px' }}>
+            <p style={{ margin: '5px 0 0', color: '#b45309', fontSize: '0.8rem', fontFamily: C.fontSerif, fontStyle: 'italic' }}>
               ⚠️ {apt.client.medical_restrictions}
-            </div>
+            </p>
           )}
 
           {reagendando === apt.id && (
-            <div style={{ background: '#fdf1f6', borderRadius: '10px', padding: '14px', marginBottom: '12px' }}>
-              <p style={{ fontWeight: 'bold', marginBottom: '10px', color: 'var(--primary-color)' }}>📅 Novo horário</p>
+            <div style={{ background: 'rgba(216,67,139,0.06)', backdropFilter: 'blur(12px)', borderRadius: '14px', padding: '14px', marginTop: '12px', border: '1px solid rgba(216,67,139,0.15)' }}>
+              <p style={{ fontWeight: '700', marginBottom: '10px', color: C.primary, fontSize: '0.88rem', fontFamily: C.fontDisplay }}>📅 Novo horário</p>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <input type="date" value={novaData} onChange={e => setNovaData(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]} style={{ flex: 1, ...inputStyle }} />
-                <select value={novaHora} onChange={e => setNovaHora(e.target.value)} style={{ flex: 1, ...selectStyle }}>
+                  min={new Date().toISOString().split('T')[0]} style={{ flex: 1, ...inputStyle, fontFamily: C.fontSans }} />
+                <select value={novaHora} onChange={e => setNovaHora(e.target.value)} style={{ flex: 1, ...selectStyle, fontFamily: C.fontSans }}>
                   <option value="">Horário...</option>
-                  {timeSlots.map(t => <option key={t} value={t}>{t.replace(':', 'h')}</option>)}
+                  {timeSlots.map(ts => <option key={ts} value={ts}>{ts.replace(':', 'h')}</option>)}
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                <button onClick={() => confirmarReagendamento(apt)} disabled={salvando}
-                  style={{ flex: 1, padding: '9px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                <PrimaryBtn onClick={() => confirmarReagendamento(apt)} disabled={salvando} style={{ flex: 1 }}>
                   {salvando ? 'Salvando...' : '✅ Confirmar'}
-                </button>
-                <button onClick={() => setReagendando(null)}
-                  style={{ padding: '9px 16px', background: '#eee', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                </PrimaryBtn>
+                <button onClick={() => setReagendando(null)} className="btn-tactile"
+                  style={{ padding: '9px 16px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', fontFamily: C.fontSans }}>
                   Cancelar
                 </button>
               </div>
             </div>
           )}
 
-          {apt.status !== 'no_show' && (
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <BtnWpp label="✅ Confirmação" color="#25D366" onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))} />
-              <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
-              <button onClick={() => { setReagendando(apt.id); setNovaData(''); setNovaHora(''); }}
-                style={{ flex: 1, minWidth: '100px', padding: '9px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.82rem', cursor: 'pointer' }}>
+          {apt.status !== 'no_show' && apt.status !== 'pending' && reagendando !== apt.id && (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '12px' }}>
+              {apt.status === 'confirmed' && (
+                <BtnWpp label="💸 Gerar Pix" color="#6366f1" onClick={() => aceitar(apt)} />
+              )}
+              {apt.status === 'aguardando_pagamento' && apt.financial?.pix_copia_cola && (
+                <BtnWpp label="💸 Reenviar Pix" color="#6366f1" onClick={() => abrirWpp(apt.client?.phone, msgPix(apt))} />
+              )}
+              {(apt.status === 'confirmed' || apt.status === 'aguardando_pagamento' || apt.status === 'scheduled') && (
+                <BtnWpp label="⏰ Lembrete" color="#128C7E" onClick={() => abrirWpp(apt.client?.phone, msgLembrete(apt))} />
+              )}
+              <button onClick={() => { setReagendando(apt.id); setNovaData(''); setNovaHora(''); }} className="btn-tactile"
+                style={{ flex: 1, minWidth: '90px', padding: '8px', background: 'rgba(245,158,11,0.12)', color: '#92400e', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '12px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', fontFamily: C.fontSans }}>
                 🔄 Remarcar
               </button>
-              <button onClick={() => registrarFalta(apt)}
-                style={{ flex: 1, minWidth: '90px', padding: '9px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.82rem', cursor: 'pointer' }}>
+              <button onClick={() => registrarFalta(apt)} className="btn-tactile"
+                style={{ flex: 1, minWidth: '80px', padding: '8px', background: C.dangerBg, color: C.danger, border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}>
                 🚫 Falta
               </button>
               <button onClick={() => cancelar(apt, 'cliente')}
-                style={{ flex: 1, minWidth: '90px', padding: '9px', background: '#fef3c7', color: '#92400e', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.82rem', cursor: 'pointer' }}>
+                style={{ flex: 1, minWidth: '80px', padding: '8px', background: C.warnBg, color: '#92400e', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer' }}>
                 📵 Cancelou
               </button>
               <button onClick={() => cancelar(apt, 'admin')}
-                style={{ padding: '9px 14px', background: '#f3f4f6', color: '#9ca3af', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
+                style={{ padding: '8px 12px', background: '#f3f4f6', color: '#9ca3af', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer' }}>
                 ✕
               </button>
             </div>
           )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontWeight: '700', color: C.text, fontSize: '0.92rem', fontFamily: C.fontMono }}>{fmt(apt.financial?.total_value)}</span>
+          {apt.status !== 'no_show' && apt.status !== 'pending' && (
+            <button
+              onClick={() => abrirWpp(apt.client?.phone, msgConfirmacao(apt))}
+              title="Enviar confirmação WhatsApp"
+              className="btn-tactile animate-float"
+              style={{
+                width: '36px', height: '36px',
+                background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                border: 'none', borderRadius: '10px',
+                color: '#fff', fontSize: '1rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(37,211,102,0.4)',
+              }}
+            >
+              💬
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPendingCard = (apt) => (
+    <div key={apt.id} style={{
+      ...glassBox,
+      borderRadius: '16px',
+      border: '1px solid rgba(255,255,255,0.55)',
+      padding: '18px',
+      fontFamily: C.fontSans,
+      transition: 'box-shadow 0.2s',
+    }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 8px 28px rgba(216,67,139,0.1)'}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = ''}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: '800', color: C.text, fontSize: '0.95rem', fontFamily: C.fontSans }}>{apt.client?.name}</span>
+          <span style={{
+            background: 'rgba(245,158,11,0.15)', color: '#92400e',
+            borderRadius: '8px', padding: '3px 10px',
+            fontSize: '0.7rem', fontWeight: '800',
+            letterSpacing: '0.03em', textTransform: 'uppercase',
+            border: '1px solid rgba(245,158,11,0.3)',
+          }}>AGUARDANDO</span>
+          {apt.client?.is_blocked && <Badge label="Bloqueada" color={C.danger} bg={C.dangerBg} />}
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
+          <p style={{ margin: 0, fontWeight: '800', color: C.text, fontSize: '0.92rem' }}>{fmt(apt.financial?.total_value)}</p>
+          <p style={{ margin: '2px 0 0', color: C.textMuted, fontSize: '0.7rem' }}>Preço Base</p>
+        </div>
+      </div>
+
+      <p style={{ margin: '0 0 10px', color: C.textMuted, fontSize: '0.82rem' }}>
+        ⏰ {fmtDate(apt.scheduled_at)}
+      </p>
+
+      <div style={{
+        background: 'rgba(216,67,139,0.04)', borderRadius: '12px',
+        border: '1px solid rgba(216,67,139,0.12)', padding: '10px 14px',
+        marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px',
+      }}>
+        <span style={{ fontSize: '1rem' }}>💅</span>
+        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: C.text, fontFamily: C.fontSans }}>{apt.service?.name}</span>
+      </div>
+
+      {apt.client?.medical_restrictions && (
+        <div style={{ background: 'rgba(245,158,11,0.1)', color: '#856404', padding: '8px 12px', borderRadius: '10px', fontSize: '0.82rem', marginBottom: '12px', border: '1px solid rgba(245,158,11,0.2)', fontFamily: C.fontSerif, fontStyle: 'italic' }}>
+          ⚠️ {apt.client.medical_restrictions}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button onClick={() => aceitar(apt)} className="btn-tactile"
+          style={{
+            flex: 1, padding: '11px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff',
+            border: 'none', borderRadius: '12px',
+            fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
+            fontFamily: C.fontSans,
+            boxShadow: '0 4px 12px rgba(16,185,129,0.35)',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 18px rgba(16,185,129,0.5)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.35)'; }}
+        >
+          ✓ Aceitar
+        </button>
+        <button onClick={() => recusar(apt)} className="btn-tactile"
+          style={{
+            flex: 1, padding: '11px', background: 'rgba(220,38,38,0.06)', color: C.danger,
+            border: '1px solid rgba(220,38,38,0.25)', borderRadius: '12px',
+            fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
+            fontFamily: C.fontSans, transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.12)'; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.4)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.06)'; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.25)'; }}
+        >
+          ✗ Recusar
+        </button>
+        <button
+          onClick={() => cancelar(apt, 'admin')}
+          title="Remover agendamento"
+          className="btn-tactile"
+          style={{
+            padding: '11px 14px', background: 'rgba(0,0,0,0.04)', color: '#94a3b8',
+            border: '1px solid rgba(0,0,0,0.08)', borderRadius: '12px',
+            cursor: 'pointer', fontSize: '1rem', transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = C.dangerBg; e.currentTarget.style.color = C.danger; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#94a3b8'; }}
+        >
+          🗑
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderListCard = (apt) => (
+    <div key={apt.id} style={{
+      display: 'flex', gap: '12px', alignItems: 'center',
+      ...glassBox, borderRadius: '14px', padding: '14px',
+      fontFamily: C.fontSans,
+    }}>
+      <div style={{
+        flexShrink: 0,
+        background: apt.status === 'no_show'
+          ? 'linear-gradient(135deg, rgba(220,38,38,0.15), rgba(220,38,38,0.08))'
+          : apt.status === 'pending'
+          ? 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.08))'
+          : 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))',
+        color: apt.status === 'no_show' ? C.danger : apt.status === 'pending' ? '#92400e' : '#065f46',
+        borderRadius: '12px', padding: '8px 10px', textAlign: 'center',
+        minWidth: '54px', fontWeight: '700', lineHeight: 1.2,
+        border: `1px solid ${apt.status === 'no_show' ? 'rgba(220,38,38,0.2)' : apt.status === 'pending' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}`,
+      }}>
+        <div style={{ fontSize: '0.72rem', fontFamily: C.fontMono }}>{fmtData(apt.scheduled_at)}</div>
+        <div style={{ fontSize: '0.85rem', fontFamily: C.fontMono }}>{fmtHora(apt.scheduled_at)}</div>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: '700', color: C.text, fontSize: '0.9rem' }}>{apt.client?.name}</span>
+          <Badge
+            label={apt.status === 'confirmed' ? 'Confirmado' : apt.status === 'aguardando_pagamento' ? 'Aguardando Pix' : apt.status === 'pending' ? 'Pendente' : apt.status === 'no_show' ? 'Falta' : apt.status === 'cancelled' ? 'Cancelado' : apt.status}
+            color={apt.status === 'confirmed' ? C.success : apt.status === 'aguardando_pagamento' ? '#6366f1' : apt.status === 'pending' ? C.warning : C.danger}
+            bg={apt.status === 'confirmed' ? C.successBg : apt.status === 'aguardando_pagamento' ? '#ede9fe' : apt.status === 'pending' ? C.warnBg : C.dangerBg}
+          />
+        </div>
+        <p style={{ margin: '2px 0 0', color: C.textMuted, fontSize: '0.82rem' }}>💅 {apt.service?.name}</p>
+      </div>
+      <div style={{ flexShrink: 0, fontWeight: '700', color: C.text, fontSize: '0.9rem' }}>
+        <span style={{ fontWeight: '700', color: C.text, fontSize: '0.9rem', fontFamily: C.fontMono }}>{fmt(apt.financial?.total_value)}</span>
+      </div>
+    </div>
+  );
+
+  const filters = [
+    { id: 'proximos',   label: 'Próximos Agendamentos', count: proximos.length,    color: '#6366f1', activeBg: 'rgba(99,102,241,0.08)' },
+    { id: 'pendentes',  label: 'Aguardando Aprovação',  count: pendentes.length,   color: C.warning, activeBg: 'rgba(245,158,11,0.08)' },
+    { id: 'confirmados', label: 'Confirmados',           count: confirmados.length, color: C.success, activeBg: 'rgba(16,185,129,0.08)' },
+    { id: 'historico',  label: 'Histórico Completo',    count: appointments.length,color: C.danger,  activeBg: 'rgba(220,38,38,0.06)' },
+  ];
+
+  const activeFilterInfo = filters.find(f => f.id === activeFilter);
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: '22px', alignItems: 'start', fontFamily: C.fontSans }}>
+      {/* Coluna esquerda: calendário + filtros */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <MonthCalendar appointments={appointments} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+
+        <Card style={{ padding: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+            <span style={{ fontSize: '1rem' }}>🔽</span>
+            <h3 style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '0.9rem', fontFamily: C.fontSans }}>Filtros de Solicitações</h3>
+          </div>
+          {filters.map(f => (
+            <button
+              key={f.id}
+              onClick={() => setActiveFilter(f.id)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', padding: '12px 14px', marginBottom: '8px',
+                background: activeFilter === f.id ? f.activeBg : 'rgba(255,255,255,0.3)',
+                border: `1.5px solid ${activeFilter === f.id ? f.color : 'rgba(255,255,255,0.4)'}`,
+                borderRadius: '14px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left',
+                fontFamily: C.fontSans,
+              }}
+              onMouseEnter={e => { if (activeFilter !== f.id) e.currentTarget.style.background = 'rgba(255,255,255,0.55)'; }}
+              onMouseLeave={e => { if (activeFilter !== f.id) e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: f.color, flexShrink: 0, display: 'inline-block', boxShadow: `0 0 6px ${f.color}88` }} />
+                <span style={{ fontSize: '0.84rem', fontWeight: activeFilter === f.id ? '700' : '500', color: C.text }}>{f.label}</span>
+              </div>
+              <span style={{ background: f.color, color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '0.75rem', fontWeight: '800', flexShrink: 0, boxShadow: `0 2px 8px ${f.color}55` }}>
+                {f.count}
+              </span>
+            </button>
+          ))}
         </Card>
-      ))}
+      </div>
+
+      {/* Coluna direita: agenda do dia + lista filtrada */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Agenda do Dia Selecionado */}
+        <Card glow style={{ padding: '22px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <h3 style={{
+                margin: 0,
+                fontFamily: C.fontDisplay,
+                background: `linear-gradient(135deg, ${C.primaryDark} 0%, ${C.primary} 60%, #e055a0 100%)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontSize: '1.1rem',
+                fontWeight: '800',
+              }}>
+                Agenda do Dia Selecionado
+              </h3>
+              {selectedDate && (
+                <p style={{ margin: '4px 0 0', color: C.textMuted, fontSize: '0.82rem', fontFamily: C.fontSans }}>
+                  Visualizando dia {fmtSelectedDate}
+                </p>
+              )}
+            </div>
+            {confirmedDayApts.length > 0 && (
+              <span style={{
+                background: 'rgba(16,185,129,0.12)', color: '#065f46',
+                border: '1px solid rgba(16,185,129,0.3)', borderRadius: '20px',
+                padding: '5px 16px', fontSize: '0.78rem', fontWeight: '700',
+                whiteSpace: 'nowrap', flexShrink: 0, fontFamily: C.fontSans,
+              }}>
+                {confirmedDayApts.length} atendimento{confirmedDayApts.length !== 1 ? 's' : ''} confirmado{confirmedDayApts.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+
+          {!selectedDate ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: C.textMuted }}>
+              <div style={{ fontSize: '2.2rem', marginBottom: '10px' }}>📅</div>
+              <p style={{ fontSize: '0.9rem', margin: 0, fontFamily: C.fontSans }}>Selecione um dia no calendário</p>
+            </div>
+          ) : dayApts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px 0', color: C.textMuted }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🌸</div>
+              <p style={{ margin: 0, fontSize: '0.9rem', fontFamily: C.fontSans }}>Nenhum agendamento neste dia.</p>
+            </div>
+          ) : (
+            <div style={{ maxHeight: '440px', overflowY: 'auto', paddingRight: '4px' }}>
+              {dayApts.map(apt => renderDayCard(apt))}
+            </div>
+          )}
+        </Card>
+
+        {/* Lista filtrada */}
+        <Card style={{ padding: '22px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '1.2rem' }}>
+                  {activeFilter === 'pendentes' ? '🔔' : activeFilter === 'confirmados' ? '✅' : '📋'}
+                </span>
+                <h3 style={{ margin: 0, fontWeight: '700', color: C.text, fontSize: '1rem', fontFamily: C.fontSans }}>
+                  {activeFilter === 'pendentes' ? 'Pendentes de Confirmação'
+                    : activeFilter === 'confirmados' ? 'Confirmados'
+                    : 'Histórico Completo'}
+                </h3>
+              </div>
+              {activeFilter === 'pendentes' && (
+                <p style={{ margin: '4px 0 0 2.2rem', color: C.textMuted, fontSize: '0.8rem', fontFamily: C.fontSans }}>
+                  Novas solicitações que necessitam de sua resposta de fluxo
+                </p>
+              )}
+            </div>
+            {filteredList.length > 0 && (
+              <span style={{
+                background: activeFilterInfo?.color || C.primary,
+                color: '#fff', borderRadius: '20px',
+                padding: '4px 14px', fontSize: '0.78rem', fontWeight: '800', flexShrink: 0,
+                boxShadow: `0 3px 10px ${(activeFilterInfo?.color || C.primary)}55`,
+                fontFamily: C.fontMono,
+              }}>
+                {filteredList.length}
+              </span>
+            )}
+          </div>
+
+          <div style={{ marginTop: '14px' }}>
+            {filteredList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 0', color: C.textMuted }}>
+                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎉</div>
+                <p style={{ fontSize: '0.9rem', margin: 0 }}>Nenhum resultado!</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px', maxHeight: '600px', overflowY: 'auto', paddingRight: '4px' }}>
+                {filteredList.map(apt => activeFilter === 'pendentes' ? renderPendingCard(apt) : renderListCard(apt))}
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -228,6 +840,7 @@ function AgendaTab({ appointments, onRefresh }) {
 // ─── ABA: NOVO ATENDIMENTO ───────────────────────────────────────────────────
 
 function NovoAtendimentoTab({ services, onRefresh }) {
+  const isMobile = useMobile();
   const [form, setForm] = useState({ client_name: '', client_phone: '', service_id: '', scheduled_date: '', scheduled_time: '', medical_restrictions: '' });
   const [loading, setLoading] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -253,49 +866,54 @@ function NovoAtendimentoTab({ services, onRefresh }) {
     finally { setLoading(false); }
   };
 
+  const labelStyle = { fontSize: '0.82rem', fontWeight: '600', color: C.textMuted, display: 'block', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.04em' };
+  const fieldWrap = { marginBottom: '16px' };
+
   return (
-    <Card style={{ maxWidth: '500px' }}>
-      <h3 style={{ color: 'var(--primary-color)', marginBottom: '20px', fontWeight: '700' }}>➕ Novo Atendimento</h3>
+    <Card style={{ maxWidth: '520px' }}>
+      <h3 style={{ color: C.primaryDark, marginBottom: '20px', fontWeight: '800', fontSize: '1.1rem' }}>Novo Atendimento</h3>
       {sucesso && (
-        <div style={{ background: '#d1fae5', color: '#065f46', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontWeight: 'bold' }}>
+        <div style={{ background: C.successBg, color: '#065f46', padding: '12px 16px', borderRadius: '10px', marginBottom: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
           ✅ Atendimento criado com sucesso!
         </div>
       )}
       <form onSubmit={handleSubmit}>
         {[
-          { label: 'Nome da Cliente *', name: 'client_name', type: 'text', placeholder: 'Ex: Maria Silva' },
-          { label: 'WhatsApp *', name: 'client_phone', type: 'tel', placeholder: '(11) 99999-9999' },
+          { label: 'Nome da Cliente', name: 'client_name', type: 'text', placeholder: 'Ex: Maria Silva', req: true },
+          { label: 'WhatsApp', name: 'client_phone', type: 'tel', placeholder: '(11) 99999-9999', req: true },
         ].map(f => (
-          <div key={f.name} className="form-group">
-            <label>{f.label}</label>
-            <input type={f.type} name={f.name} value={form[f.name]} onChange={handleChange} placeholder={f.placeholder} required />
+          <div key={f.name} style={fieldWrap}>
+            <label style={labelStyle}>{f.label} {f.req && <span style={{ color: C.primary }}>*</span>}</label>
+            <input type={f.type} name={f.name} value={form[f.name]} onChange={handleChange} placeholder={f.placeholder} required={f.req} style={inputStyle} />
           </div>
         ))}
-        <div className="form-group">
-          <label>Procedimento *</label>
-          <select name="service_id" value={form.service_id} onChange={handleChange} required style={{ width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+        <div style={fieldWrap}>
+          <label style={labelStyle}>Procedimento <span style={{ color: C.primary }}>*</span></label>
+          <select name="service_id" value={form.service_id} onChange={handleChange} required style={selectStyle}>
             <option value="">Selecione...</option>
             {services.filter(s => s.is_active !== false).map(s => <option key={s.id} value={s.id}>[{s.category?.toUpperCase()}] {s.name}</option>)}
           </select>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <div className="form-group">
-            <label>Data *</label>
-            <input type="date" name="scheduled_date" value={form.scheduled_date} onChange={handleChange} min={new Date().toISOString().split('T')[0]} required />
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
+          <div style={fieldWrap}>
+            <label style={labelStyle}>Data <span style={{ color: C.primary }}>*</span></label>
+            <input type="date" name="scheduled_date" value={form.scheduled_date} onChange={handleChange} min={new Date().toISOString().split('T')[0]} required style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label>Horário *</label>
-            <select name="scheduled_time" value={form.scheduled_time} onChange={handleChange} required style={{ width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <div style={fieldWrap}>
+            <label style={labelStyle}>Horário <span style={{ color: C.primary }}>*</span></label>
+            <select name="scheduled_time" value={form.scheduled_time} onChange={handleChange} required style={selectStyle}>
               <option value="">Horário...</option>
               {timeSlots.map(t => <option key={t} value={t}>{t.replace(':', 'h')}</option>)}
             </select>
           </div>
         </div>
-        <div className="form-group">
-          <label>Restrições médicas (opcional)</label>
-          <input type="text" name="medical_restrictions" value={form.medical_restrictions} onChange={handleChange} placeholder="Ex: Gestante, alergia a cola..." />
+        <div style={fieldWrap}>
+          <label style={labelStyle}>Restrições médicas</label>
+          <input type="text" name="medical_restrictions" value={form.medical_restrictions} onChange={handleChange} placeholder="Ex: Gestante, alergia a cola..." style={inputStyle} />
         </div>
-        <button type="submit" className="btn-primary" disabled={loading}>{loading ? 'Criando...' : 'Criar Atendimento'}</button>
+        <PrimaryBtn disabled={loading} style={{ width: '100%', padding: '13px', fontSize: '0.95rem' }}>
+          {loading ? 'Criando...' : '✨ Criar Atendimento'}
+        </PrimaryBtn>
       </form>
     </Card>
   );
@@ -304,6 +922,7 @@ function NovoAtendimentoTab({ services, onRefresh }) {
 // ─── ABA: CLIENTES (CRM) ─────────────────────────────────────────────────────
 
 function ClientesTab({ clients, appointments, onRefresh }) {
+  const isMobile = useMobile();
   const [search, setSearch] = useState('');
   const [filtro, setFiltro] = useState('todas');
   const [expandedId, setExpandedId] = useState(null);
@@ -354,29 +973,33 @@ function ClientesTab({ clients, appointments, onRefresh }) {
     catch { alert('Erro ao alterar bloqueio.'); }
   };
 
+  const filtroOpts = [{ id: 'todas', label: 'Todas' }, { id: 'bloqueadas', label: '🚫 Bloqueadas' }, { id: 'faltas', label: '⚠️ Com faltas' }];
+
   return (
     <div style={{ display: 'grid', gap: '16px' }}>
-      {/* Busca + filtros */}
-      <Card style={{ padding: '14px' }}>
+      <Card style={{ padding: '16px' }}>
         <input
           type="text" placeholder="🔍 Buscar por nome, telefone ou @instagram..."
           value={search} onChange={e => setSearch(e.target.value)}
-          style={{ ...inputStyle, marginBottom: '10px' }}
+          style={{ ...inputStyle, marginBottom: '12px' }}
         />
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {[{ id: 'todas', label: 'Todas' }, { id: 'bloqueadas', label: '🚫 Bloqueadas' }, { id: 'faltas', label: '⚠️ Com faltas' }].map(f => (
+          {filtroOpts.map(f => (
             <button key={f.id} onClick={() => setFiltro(f.id)} style={{
-              padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.82rem',
-              background: filtro === f.id ? 'var(--primary-color)' : '#eee',
-              color: filtro === f.id ? '#fff' : 'var(--text-muted)',
-              fontWeight: filtro === f.id ? '700' : '400',
+              padding: '6px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.82rem',
+              background: filtro === f.id ? gradientBtn : '#f1f5f9',
+              color: filtro === f.id ? '#fff' : C.textMuted,
+              fontWeight: filtro === f.id ? '700' : '500',
+              transition: 'all 0.2s',
             }}>{f.label}</button>
           ))}
-          <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{filtered.length} cliente{filtered.length !== 1 ? 's' : ''}</span>
+          <span style={{ marginLeft: 'auto', color: C.textMuted, fontSize: '0.82rem', fontWeight: '500' }}>
+            {filtered.length} cliente{filtered.length !== 1 ? 's' : ''}
+          </span>
         </div>
       </Card>
 
-      {filtered.length === 0 && <p style={{ color: 'var(--text-muted)' }}>Nenhuma cliente encontrada.</p>}
+      {filtered.length === 0 && <p style={{ color: C.textMuted, textAlign: 'center', padding: '24px 0' }}>Nenhuma cliente encontrada.</p>}
 
       {filtered.map(c => {
         const apts = clientApts(c.id);
@@ -386,68 +1009,68 @@ function ClientesTab({ clients, appointments, onRefresh }) {
         const cancels = c.cancellation_count || 0;
 
         return (
-          <Card key={c.id} style={{ borderLeft: `5px solid ${c.is_blocked ? '#dc2626' : noShows > 0 ? '#f59e0b' : 'var(--primary-color)'}` }}>
-            {/* Cabeçalho do card */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+          <Card key={c.id} style={{
+            borderLeft: `4px solid ${c.is_blocked ? C.danger : noShows > 0 ? C.warning : C.primary}`,
+            transition: 'transform 0.15s, box-shadow 0.15s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 5px 20px rgba(0,0,0,0.11)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)'; }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-main)' }}>{c.name}</h3>
-                  {c.is_blocked && <Badge label="🚫 Bloqueada" color="#dc2626" bg="#fee2e2" />}
-                  {noShows > 0 && <Badge label={`⚠️ ${noShows} falta${noShows > 1 ? 's' : ''}`} color="#92400e" bg="#fef3c7" />}
+                  <h3 style={{ margin: 0, fontSize: '1rem', color: C.text, fontWeight: '700' }}>{c.name}</h3>
+                  {c.is_blocked && <Badge label="🚫 Bloqueada" color={C.danger} bg={C.dangerBg} />}
+                  {noShows > 0 && <Badge label={`⚠️ ${noShows} falta${noShows > 1 ? 's' : ''}`} color="#92400e" bg={C.warnBg} />}
                 </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: '4px 0 0' }}>
+                <p style={{ color: C.textMuted, fontSize: '0.85rem', margin: '4px 0 0' }}>
                   📱 {c.phone}
                   {c.instagram && <span style={{ marginLeft: '10px' }}>📸 @{c.instagram.replace('@', '')}</span>}
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem', alignSelf: 'center' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ color: C.textMuted, fontSize: '0.8rem' }}>
                   {apts.length} atend. · {cancels} cancel.
                 </span>
               </div>
             </div>
 
-            {/* Botões principais */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: isExpanded ? '14px' : 0 }}>
               <button onClick={() => abrirWpp(c.phone, `Oi ${c.name}! 💕`)}
-                style={{ padding: '7px 12px', background: '#25D366', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                style={{ padding: '7px 14px', background: '#25D366', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
                 📲 WhatsApp
               </button>
               <button onClick={() => { setExpandedId(isExpanded ? null : c.id); setEditingId(null); }}
-                style={{ padding: '7px 12px', background: '#f3f4f6', color: 'var(--text-muted)', border: 'none', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                {isExpanded ? '▲ Fechar' : '▼ Ver detalhes'}
+                style={{ padding: '7px 14px', background: '#f1f5f9', color: C.textMuted, border: 'none', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer' }}>
+                {isExpanded ? '▲ Fechar' : '▼ Detalhes'}
               </button>
               <button onClick={() => { startEdit(c); setExpandedId(c.id); }}
-                style={{ padding: '7px 12px', background: '#ede9fe', color: '#5b21b6', border: 'none', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                style={{ padding: '7px 14px', background: '#ede9fe', color: '#5b21b6', border: 'none', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
                 ✏️ Preferências
               </button>
               <button onClick={() => toggleBlock(c)}
-                style={{ padding: '7px 12px', background: c.is_blocked ? '#d1fae5' : '#fee2e2', color: c.is_blocked ? '#065f46' : '#dc2626', border: 'none', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                style={{ padding: '7px 14px', background: c.is_blocked ? C.successBg : C.dangerBg, color: c.is_blocked ? '#065f46' : C.danger, border: 'none', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
                 {c.is_blocked ? '✅ Desbloquear' : '🚫 Bloquear'}
               </button>
             </div>
 
-            {/* Painel expandido */}
             {isExpanded && (
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-
-                {/* Formulário de preferências */}
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '16px', marginTop: '4px' }}>
                 {isEditing && (
-                  <div style={{ background: '#fdf1f6', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
-                    <p style={{ fontWeight: '700', color: 'var(--primary-color)', marginBottom: '12px' }}>✏️ Editar preferências</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ background: '#fdf1f6', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                    <p style={{ fontWeight: '700', color: C.primary, marginBottom: '14px', fontSize: '0.9rem' }}>✏️ Editar preferências</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
+                      {[
+                        { label: 'Instagram', key: 'instagram', placeholder: '@usuario' },
+                        { label: 'Volume favorito', key: 'favorite_volume', placeholder: 'Ex: Volume Russo' },
+                      ].map(f => (
+                        <div key={f.key}>
+                          <label style={{ fontSize: '0.78rem', color: C.textMuted, display: 'block', marginBottom: '4px', fontWeight: '600' }}>{f.label}</label>
+                          <input value={editForm[f.key]} onChange={e => setEditForm({ ...editForm, [f.key]: e.target.value })} placeholder={f.placeholder} style={inputStyle} />
+                        </div>
+                      ))}
                       <div>
-                        <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Instagram</label>
-                        <input value={editForm.instagram} onChange={e => setEditForm({ ...editForm, instagram: e.target.value })}
-                          placeholder="@usuario" style={inputStyle} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Volume favorito</label>
-                        <input value={editForm.favorite_volume} onChange={e => setEditForm({ ...editForm, favorite_volume: e.target.value })}
-                          placeholder="Ex: Volume Russo" style={inputStyle} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Sensibilidade</label>
+                        <label style={{ fontSize: '0.78rem', color: C.textMuted, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Sensibilidade</label>
                         <select value={editForm.sensitivity} onChange={e => setEditForm({ ...editForm, sensitivity: e.target.value })} style={selectStyle}>
                           <option value="">Não informado</option>
                           <option value="baixa">Baixa</option>
@@ -456,7 +1079,7 @@ function ClientesTab({ clients, appointments, onRefresh }) {
                         </select>
                       </div>
                       <div>
-                        <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Freq. manutenção</label>
+                        <label style={{ fontSize: '0.78rem', color: C.textMuted, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Freq. manutenção</label>
                         <select value={editForm.maintenance_frequency} onChange={e => setEditForm({ ...editForm, maintenance_frequency: e.target.value })} style={selectStyle}>
                           <option value="">Não informado</option>
                           <option value="14">14 dias</option>
@@ -465,57 +1088,54 @@ function ClientesTab({ clients, appointments, onRefresh }) {
                         </select>
                       </div>
                     </div>
-                    <div style={{ marginTop: '10px' }}>
-                      <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Restrições médicas</label>
+                    <div style={{ marginTop: '12px' }}>
+                      <label style={{ fontSize: '0.78rem', color: C.textMuted, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Restrições médicas</label>
                       <input value={editForm.medical_restrictions} onChange={e => setEditForm({ ...editForm, medical_restrictions: e.target.value })}
                         placeholder="Ex: Gestante, lactante, alergias..." style={inputStyle} />
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem', cursor: 'pointer' }}>
+                    <div style={{ marginTop: '12px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer', color: C.text }}>
                         <input type="checkbox" checked={editForm.has_henna_allergy} onChange={e => setEditForm({ ...editForm, has_henna_allergy: e.target.checked })} />
                         Alergia a hena
                       </label>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                      <button onClick={() => saveEdit(c.id)} disabled={saving}
-                        style={{ flex: 1, padding: '9px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                      <PrimaryBtn onClick={() => saveEdit(c.id)} disabled={saving} style={{ flex: 1 }}>
                         {saving ? 'Salvando...' : '✅ Salvar'}
-                      </button>
+                      </PrimaryBtn>
                       <button onClick={() => setEditingId(null)}
-                        style={{ padding: '9px 16px', background: '#eee', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                        style={{ padding: '10px 18px', background: '#f1f5f9', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', color: C.textMuted }}>
                         Cancelar
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Preferências salvas */}
                 {!isEditing && (c.favorite_volume || c.sensitivity || c.maintenance_frequency || c.has_henna_allergy) && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
                     {c.favorite_volume && <Badge label={`💅 ${c.favorite_volume}`} />}
                     {c.sensitivity && <Badge label={`🌡️ Sensib. ${c.sensitivity}`} color="#5b21b6" bg="#ede9fe" />}
-                    {c.maintenance_frequency && <Badge label={`🗓️ Manut. ${c.maintenance_frequency}d`} color="#065f46" bg="#d1fae5" />}
-                    {c.has_henna_allergy && <Badge label="⚠️ Alérgica a hena" color="#92400e" bg="#fef3c7" />}
+                    {c.maintenance_frequency && <Badge label={`🗓️ Manut. ${c.maintenance_frequency}d`} color="#065f46" bg={C.successBg} />}
+                    {c.has_henna_allergy && <Badge label="⚠️ Alérgica a hena" color="#92400e" bg={C.warnBg} />}
                   </div>
                 )}
 
-                {/* Histórico de atendimentos */}
-                <p style={{ fontWeight: '700', color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
-                  📋 Histórico ({apts.length} atendimentos)
+                <p style={{ fontWeight: '700', color: C.textMuted, fontSize: '0.82rem', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Histórico ({apts.length} atendimentos)
                 </p>
                 {apts.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Sem atendimentos registrados.</p>
+                  <p style={{ color: C.textMuted, fontSize: '0.85rem' }}>Sem atendimentos registrados.</p>
                 ) : (
                   <div style={{ display: 'grid', gap: '6px' }}>
                     {apts.slice(0, 8).map(a => (
-                      <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f9fafb', borderRadius: '8px', fontSize: '0.85rem' }}>
-                        <span>{fmtDate(a.scheduled_at)} — {a.service?.name || '—'}</span>
+                      <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 14px', background: '#f8f7fc', borderRadius: '10px', fontSize: '0.84rem' }}>
+                        <span style={{ color: C.text }}>{fmtDate(a.scheduled_at)} — {a.service?.name || '—'}</span>
                         <span style={{
-                          padding: '2px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '700',
-                          background: a.status === 'no_show' ? '#fee2e2' : a.status === 'scheduled' ? '#dbeafe' : '#d1fae5',
-                          color: a.status === 'no_show' ? '#dc2626' : a.status === 'scheduled' ? '#1d4ed8' : '#065f46',
+                          padding: '2px 10px', borderRadius: '12px', fontSize: '0.73rem', fontWeight: '700',
+                          background: a.status === 'no_show' ? C.dangerBg : a.status === 'pending' ? C.warnBg : a.status === 'rejected' ? '#f3f4f6' : a.status === 'aguardando_pagamento' ? '#ede9fe' : a.status === 'scheduled' || a.status === 'confirmed' ? '#dbeafe' : C.successBg,
+                          color: a.status === 'no_show' ? C.danger : a.status === 'pending' ? '#92400e' : a.status === 'rejected' ? '#9ca3af' : a.status === 'aguardando_pagamento' ? '#6366f1' : a.status === 'scheduled' || a.status === 'confirmed' ? '#1d4ed8' : '#065f46',
                         }}>
-                          {a.status === 'no_show' ? 'Falta' : a.status === 'scheduled' ? 'Agendado' : 'Concluído'}
+                          {a.status === 'no_show' ? 'Falta' : a.status === 'pending' ? 'Pendente' : a.status === 'rejected' ? 'Recusado' : a.status === 'aguardando_pagamento' ? 'Aguardando Pix' : a.status === 'confirmed' ? 'Confirmado' : a.status === 'scheduled' ? 'Agendado' : 'Concluído'}
                         </span>
                       </div>
                     ))}
@@ -539,6 +1159,7 @@ const CATEGORIAS = [
 ];
 
 function CatalogoTab({ services, onRefresh }) {
+  const isMobile = useMobile();
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [showAdd, setShowAdd] = useState(false);
@@ -586,124 +1207,110 @@ function CatalogoTab({ services, onRefresh }) {
     catch { alert('Erro ao alterar status.'); }
   };
 
-  const fieldStyle = (label, value, setter, type = 'text', placeholder = '') => (
-    <div>
-      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>{label}</label>
-      <input type={type} value={value} onChange={e => setter(e.target.value)} placeholder={placeholder} style={inputStyle} />
-    </div>
-  );
+  const smallLabel = { fontSize: '0.78rem', color: C.textMuted, display: 'block', marginBottom: '4px', fontWeight: '600' };
 
   return (
     <div style={{ display: 'grid', gap: '24px' }}>
-      {/* Botão adicionar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={() => setShowAdd(!showAdd)} style={{
-          padding: '10px 20px', background: 'var(--primary-color)', color: '#fff',
-          border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer'
-        }}>
+        <PrimaryBtn onClick={() => setShowAdd(!showAdd)}>
           {showAdd ? '✕ Cancelar' : '➕ Novo serviço'}
-        </button>
+        </PrimaryBtn>
       </div>
 
-      {/* Formulário de adição */}
       {showAdd && (
-        <Card style={{ borderTop: '4px solid var(--primary-color)' }}>
-          <h4 style={{ color: 'var(--primary-color)', marginBottom: '14px', fontWeight: '700' }}>Novo serviço</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <Card style={{ borderTop: `4px solid ${C.primary}` }}>
+          <h4 style={{ color: C.primaryDark, marginBottom: '16px', fontWeight: '800', fontSize: '1rem' }}>Novo serviço</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px' }}>
             <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Nome *</label>
+              <label style={smallLabel}>Nome *</label>
               <input value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })} placeholder="Ex: Volume Russo" style={inputStyle} />
             </div>
             <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Categoria</label>
+              <label style={smallLabel}>Categoria</label>
               <select value={addForm.category} onChange={e => setAddForm({ ...addForm, category: e.target.value })} style={selectStyle}>
                 {CATEGORIAS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Preço total (R$) *</label>
+              <label style={smallLabel}>Preço total (R$) *</label>
               <input type="number" value={addForm.base_price} onChange={e => setAddForm({ ...addForm, base_price: e.target.value })} placeholder="130" style={inputStyle} />
             </div>
             <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Sinal (R$)</label>
+              <label style={smallLabel}>Sinal (R$)</label>
               <input type="number" value={addForm.deposit_amount} onChange={e => setAddForm({ ...addForm, deposit_amount: e.target.value })} placeholder="30" style={inputStyle} />
             </div>
             <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Duração (min)</label>
+              <label style={smallLabel}>Duração (min)</label>
               <input type="number" value={addForm.estimated_minutes} onChange={e => setAddForm({ ...addForm, estimated_minutes: e.target.value })} placeholder="120" style={inputStyle} />
             </div>
           </div>
-          <button onClick={addService} disabled={saving} style={{ marginTop: '14px', padding: '10px 24px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+          <PrimaryBtn onClick={addService} disabled={saving} style={{ marginTop: '16px' }}>
             {saving ? 'Salvando...' : '✅ Adicionar'}
-          </button>
+          </PrimaryBtn>
         </Card>
       )}
 
-      {/* Serviços por categoria */}
       {CATEGORIAS.map(cat => {
         const catServices = services.filter(s => s.category === cat.id);
         if (!catServices.length) return null;
         return (
           <div key={cat.id}>
-            <h4 style={{ color: 'var(--text-main)', fontWeight: '700', marginBottom: '12px', fontSize: '1rem' }}>{cat.label}</h4>
+            <h4 style={{ color: C.text, fontWeight: '800', marginBottom: '12px', fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{cat.label}</h4>
             <div style={{ display: 'grid', gap: '10px' }}>
               {catServices.map(s => (
-                <Card key={s.id} style={{ padding: '14px', opacity: s.is_active === false ? 0.6 : 1 }}>
+                <Card key={s.id} style={{ padding: '16px', opacity: s.is_active === false ? 0.6 : 1, transition: 'transform 0.15s, box-shadow 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 5px 18px rgba(0,0,0,0.11)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)'; }}
+                >
                   {editingId === s.id ? (
-                    /* Modo edição */
                     <div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                        {[
+                          { label: 'Nome', key: 'name', type: 'text' },
+                          { label: 'Preço (R$)', key: 'base_price', type: 'number' },
+                          { label: 'Sinal (R$)', key: 'deposit_amount', type: 'number' },
+                          { label: 'Duração (min)', key: 'estimated_minutes', type: 'number' },
+                        ].map(f => (
+                          <div key={f.key}>
+                            <label style={smallLabel}>{f.label}</label>
+                            <input type={f.type} value={editForm[f.key]} onChange={e => setEditForm({ ...editForm, [f.key]: e.target.value })} style={inputStyle} />
+                          </div>
+                        ))}
                         <div>
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Nome</label>
-                          <input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} style={inputStyle} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Categoria</label>
+                          <label style={smallLabel}>Categoria</label>
                           <select value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })} style={selectStyle}>
                             {CATEGORIAS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                           </select>
                         </div>
-                        <div>
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Preço (R$)</label>
-                          <input type="number" value={editForm.base_price} onChange={e => setEditForm({ ...editForm, base_price: e.target.value })} style={inputStyle} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Sinal (R$)</label>
-                          <input type="number" value={editForm.deposit_amount} onChange={e => setEditForm({ ...editForm, deposit_amount: e.target.value })} style={inputStyle} />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>Duração (min)</label>
-                          <input type="number" value={editForm.estimated_minutes} onChange={e => setEditForm({ ...editForm, estimated_minutes: e.target.value })} style={inputStyle} />
-                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => saveEdit(s.id)} disabled={saving}
-                          style={{ flex: 1, padding: '8px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        <PrimaryBtn onClick={() => saveEdit(s.id)} disabled={saving} style={{ flex: 1 }}>
                           {saving ? '...' : '✅ Salvar'}
-                        </button>
+                        </PrimaryBtn>
                         <button onClick={() => setEditingId(null)}
-                          style={{ padding: '8px 16px', background: '#eee', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
+                          style={{ padding: '10px 18px', background: '#f1f5f9', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', color: C.textMuted }}>
+                          Cancelar
+                        </button>
                       </div>
                     </div>
                   ) : (
-                    /* Modo visualização */
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                       <div>
-                        <p style={{ fontWeight: '700', color: 'var(--text-main)', margin: '0 0 4px' }}>
+                        <p style={{ fontWeight: '700', color: C.text, margin: '0 0 4px', fontSize: '0.95rem' }}>
                           {s.name}
-                          {s.is_active === false && <span style={{ marginLeft: '8px', fontSize: '0.75rem', color: '#9ca3af' }}>(inativo)</span>}
+                          {s.is_active === false && <span style={{ marginLeft: '8px', fontSize: '0.73rem', color: '#9ca3af', fontWeight: '400' }}>(inativo)</span>}
                         </p>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                        <p style={{ color: C.textMuted, fontSize: '0.84rem', margin: 0 }}>
                           💰 {fmt(s.base_price)} · 💳 Sinal {fmt(s.deposit_amount)} · ⏱ {s.estimated_minutes}min
                         </p>
                       </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
                         <button onClick={() => startEdit(s)}
-                          style={{ padding: '6px 12px', background: '#ede9fe', color: '#5b21b6', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                          style={{ padding: '7px 14px', background: '#ede9fe', color: '#5b21b6', border: 'none', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}>
                           ✏️ Editar
                         </button>
                         <button onClick={() => toggleAtivo(s)}
-                          style={{ padding: '6px 12px', background: s.is_active === false ? '#d1fae5' : '#fee2e2', color: s.is_active === false ? '#065f46' : '#dc2626', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                          style={{ padding: '7px 14px', background: s.is_active === false ? C.successBg : C.dangerBg, color: s.is_active === false ? '#065f46' : C.danger, border: 'none', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}>
                           {s.is_active === false ? '✅ Ativar' : '🚫 Desativar'}
                         </button>
                       </div>
@@ -722,7 +1329,7 @@ function CatalogoTab({ services, onRefresh }) {
 // ─── ABA: ESTATÍSTICAS ────────────────────────────────────────────────────────
 
 function EstatisticasTab({ stats, appointments }) {
-  if (!stats) return <p style={{ color: 'var(--text-muted)' }}>Carregando estatísticas...</p>;
+  if (!stats) return <p style={{ color: C.textMuted }}>Carregando estatísticas...</p>;
 
   const top10 = (stats.services || []).filter(s => s.total > 0).slice(0, 10);
   const catData = ['cilios', 'sobrancelha', 'remocao'].map(cat => ({
@@ -740,21 +1347,21 @@ function EstatisticasTab({ stats, appointments }) {
   return (
     <div style={{ display: 'grid', gap: '20px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px' }}>
-        <StatCard label="Total de Atendimentos" value={stats.total_appointments} color="#d8438b" />
+        <StatCard label="Total de Atendimentos" value={stats.total_appointments} color={C.primary} />
         <StatCard label="Próximos 7 dias" value={proximos7} color="#6366f1" />
-        <StatCard label="Ticket Médio" value={fmt(stats.ticket_medio)} color="#f59e0b" />
+        <StatCard label="Ticket Médio" value={fmt(stats.ticket_medio)} color={C.warning} />
       </div>
 
       {top10.length > 0 && (
         <Card>
-          <h4 style={{ color: 'var(--text-main)', marginBottom: '16px', fontWeight: '700' }}>📊 Serviços mais agendados</h4>
+          <h4 style={{ color: C.text, marginBottom: '16px', fontWeight: '700' }}>Serviços mais agendados</h4>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={top10} layout="vertical" margin={{ left: 20, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: C.textMuted }} />
+              <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11, fill: C.text }} />
               <Tooltip />
-              <Bar dataKey="total" fill="#d8438b" radius={[0, 6, 6, 0]} name="Agendamentos" />
+              <Bar dataKey="total" fill={C.primary} radius={[0, 8, 8, 0]} name="Agendamentos" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -762,7 +1369,7 @@ function EstatisticasTab({ stats, appointments }) {
 
       {catData.length > 0 && (
         <Card>
-          <h4 style={{ color: 'var(--text-main)', marginBottom: '16px', fontWeight: '700' }}>🥧 Distribuição por categoria</h4>
+          <h4 style={{ color: C.text, marginBottom: '16px', fontWeight: '700' }}>Distribuição por categoria</h4>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie data={catData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`}>
@@ -775,9 +1382,10 @@ function EstatisticasTab({ stats, appointments }) {
       )}
 
       {stats.total_appointments === 0 && (
-        <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '20px' }}>
-          Nenhum dado ainda. Os gráficos aparecem conforme os agendamentos forem criados.
-        </p>
+        <div style={{ textAlign: 'center', padding: '40px 0', color: C.textMuted }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📊</div>
+          <p>Nenhum dado ainda. Os gráficos aparecem conforme os agendamentos forem criados.</p>
+        </div>
       )}
     </div>
   );
@@ -786,7 +1394,7 @@ function EstatisticasTab({ stats, appointments }) {
 // ─── ABA: FINANCEIRO ─────────────────────────────────────────────────────────
 
 function FinanceiroTab({ stats }) {
-  if (!stats) return <p style={{ color: 'var(--text-muted)' }}>Carregando...</p>;
+  if (!stats) return <p style={{ color: C.textMuted }}>Carregando...</p>;
 
   const projecaoMensal = stats.ticket_medio * 20;
   const taxaRecebimento = stats.total_revenue > 0
@@ -795,9 +1403,9 @@ function FinanceiroTab({ stats }) {
   return (
     <div style={{ display: 'grid', gap: '20px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-        <StatCard label="Receita Total Gerada" value={fmt(stats.total_revenue)} color="#d8438b" sub="Soma de todos os atendimentos" />
+        <StatCard label="Receita Total Gerada" value={fmt(stats.total_revenue)} color={C.primary} sub="Soma de todos os atendimentos" />
         <StatCard label="Sinais Recebidos" value={fmt(stats.total_deposits)} color="#25D366" sub="Pix confirmados" />
-        <StatCard label="A Receber no Dia" value={fmt(stats.total_pending)} color="#f59e0b" sub="Saldo dos atendimentos" />
+        <StatCard label="A Receber no Dia" value={fmt(stats.total_pending)} color={C.warning} sub="Saldo dos atendimentos" />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
         <StatCard label="Ticket Médio" value={fmt(stats.ticket_medio)} color="#6366f1" sub="Por atendimento" />
@@ -805,13 +1413,13 @@ function FinanceiroTab({ stats }) {
         <StatCard label="Taxa de Recebimento" value={`${taxaRecebimento}%`} color="#ec4899" sub="Sinais / Total gerado" />
       </div>
       <Card>
-        <h4 style={{ color: 'var(--text-main)', marginBottom: '16px', fontWeight: '700' }}>💰 Faturamento por categoria</h4>
+        <h4 style={{ color: C.text, marginBottom: '16px', fontWeight: '700' }}>Faturamento por categoria</h4>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ background: '#fdf1f6' }}>
                 {['Categoria', 'Atendimentos', 'Receita estimada'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--primary-color)', fontWeight: '700' }}>{h}</th>
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: C.primaryDark, fontWeight: '700', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -820,10 +1428,10 @@ function FinanceiroTab({ stats }) {
                 const itens = (stats.services || []).filter(s => s.category === cat);
                 const total = itens.reduce((a, s) => a + s.total, 0);
                 return (
-                  <tr key={cat} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '10px 14px' }}>{label}</td>
-                    <td style={{ padding: '10px 14px' }}>{total}</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 'bold', color: 'var(--primary-color)' }}>{fmt(total * stats.ticket_medio)}</td>
+                  <tr key={cat} style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <td style={{ padding: '12px 16px', color: C.text, fontWeight: '500' }}>{label}</td>
+                    <td style={{ padding: '12px 16px', color: C.textMuted }}>{total}</td>
+                    <td style={{ padding: '12px 16px', fontWeight: '700', color: C.primary }}>{fmt(total * stats.ticket_medio)}</td>
                   </tr>
                 );
               })}
@@ -831,6 +1439,234 @@ function FinanceiroTab({ stats }) {
           </table>
         </div>
       </Card>
+    </div>
+  );
+}
+
+// ─── ABA: PROMOÇÕES ──────────────────────────────────────────────────────────
+
+function PromocoesTab() {
+  const [promos, setPromos]       = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [erro, setErro]           = useState(null);
+  const [editando, setEditando]   = useState(null); // null | 'new' | promo object
+  const [form, setForm]           = useState({
+    name:'', code:'', discount_type:'percent', discount_value:'',
+    applies_to:'all', valid_from:'', valid_until:'', is_active:true, max_uses:''
+  });
+
+  const fetchPromos = () => {
+    setLoading(true);
+    setErro(null);
+    api.get('/promotions/all/')
+      .then(r => setPromos(Array.isArray(r.data) ? r.data : []))
+      .catch(e => setErro(e.response?.data?.detail || 'Erro ao carregar promoções.'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(fetchPromos, []);
+
+  const abrirNovo = () => {
+    setForm({ name:'', code:'', discount_type:'percent', discount_value:'', applies_to:'all', valid_from:'', valid_until:'', is_active:true, max_uses:'' });
+    setEditando('new');
+  };
+
+  const abrirEditar = (p) => {
+    setForm({
+      name: p.name, code: p.code || '', discount_type: p.discount_type,
+      discount_value: String(p.discount_value), applies_to: p.applies_to,
+      valid_from: p.valid_from || '', valid_until: p.valid_until || '',
+      is_active: p.is_active, max_uses: p.max_uses != null ? String(p.max_uses) : '',
+    });
+    setEditando(p);
+  };
+
+  const salvar = async () => {
+    if (!form.name || !form.discount_value) { alert('Preencha nome e desconto.'); return; }
+    const payload = {
+      ...form,
+      discount_value: parseFloat(form.discount_value),
+      max_uses: form.max_uses ? parseInt(form.max_uses) : null,
+      code: form.code.trim().toUpperCase() || null,
+      valid_from:  form.valid_from  || null,
+      valid_until: form.valid_until || null,
+    };
+    try {
+      if (editando === 'new') {
+        await api.post('/promotions/', payload);
+      } else {
+        await api.put(`/promotions/${editando.id}/`, payload);
+      }
+      setEditando(null);
+      fetchPromos();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Erro ao salvar.');
+    }
+  };
+
+  const deletar = async (id) => {
+    if (!confirm('Remover esta promoção?')) return;
+    try {
+      await api.delete(`/promotions/${id}/`);
+      fetchPromos();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Erro ao remover.');
+    }
+  };
+
+  const toggleAtivo = async (p) => {
+    try {
+      await api.put(`/promotions/${p.id}/`, { is_active: !p.is_active });
+      fetchPromos();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Erro ao atualizar.');
+    }
+  };
+
+  const catLabel = { all:'Todos', cilios:'Cílios', sobrancelha:'Sobrancelhas', remocao:'Remoção' };
+
+  const inputStyle = { width:'100%', padding:'10px 14px', borderRadius:'10px', border:'1px solid #e5e7eb', fontSize:'0.88rem', outline:'none', boxSizing:'border-box' };
+  const labelStyle = { fontSize:'0.78rem', fontWeight:'700', color:'#6b7280', marginBottom:'4px', display:'block' };
+
+  if (editando !== null) {
+    return (
+      <div style={{ maxWidth:'560px', margin:'0 auto', background:'#fff', borderRadius:'20px', padding:'28px', boxShadow:'0 4px 24px rgba(0,0,0,0.08)' }}>
+        <h3 style={{ margin:'0 0 24px', fontSize:'1.1rem', fontWeight:'800' }}>
+          {editando === 'new' ? '➕ Nova Promoção' : '✏️ Editar Promoção'}
+        </h3>
+        <div style={{ display:'grid', gap:'16px' }}>
+          <div>
+            <label style={labelStyle}>Nome da promoção *</label>
+            <input style={inputStyle} value={form.name} onChange={e => setForm(p=>({...p,name:e.target.value}))} placeholder="Ex: Junho -10% Brow" />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={labelStyle}>Tipo de desconto *</label>
+              <select style={inputStyle} value={form.discount_type} onChange={e => setForm(p=>({...p,discount_type:e.target.value}))}>
+                <option value="percent">Porcentagem (%)</option>
+                <option value="fixed">Valor fixo (R$)</option>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Valor do desconto *</label>
+              <input style={inputStyle} type="number" min="0" value={form.discount_value} onChange={e => setForm(p=>({...p,discount_value:e.target.value}))} placeholder={form.discount_type === 'percent' ? '10' : '15.00'} />
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={labelStyle}>Cupom (opcional)</label>
+              <input style={inputStyle} value={form.code} onChange={e => setForm(p=>({...p,code:e.target.value.toUpperCase()}))} placeholder="JUNHO10" />
+            </div>
+            <div>
+              <label style={labelStyle}>Aplica em</label>
+              <select style={inputStyle} value={form.applies_to} onChange={e => setForm(p=>({...p,applies_to:e.target.value}))}>
+                <option value="all">Todos os serviços</option>
+                <option value="cilios">Cílios</option>
+                <option value="sobrancelha">Sobrancelhas</option>
+                <option value="remocao">Remoção</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={labelStyle}>Válido de</label>
+              <input style={inputStyle} type="date" value={form.valid_from} onChange={e => setForm(p=>({...p,valid_from:e.target.value}))} />
+            </div>
+            <div>
+              <label style={labelStyle}>Válido até</label>
+              <input style={inputStyle} type="date" value={form.valid_until} onChange={e => setForm(p=>({...p,valid_until:e.target.value}))} />
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            <div>
+              <label style={labelStyle}>Limite de usos (vazio = ilimitado)</label>
+              <input style={inputStyle} type="number" min="1" value={form.max_uses} onChange={e => setForm(p=>({...p,max_uses:e.target.value}))} placeholder="Ilimitado" />
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', paddingTop:'22px' }}>
+              <input type="checkbox" id="is_active" checked={form.is_active} onChange={e => setForm(p=>({...p,is_active:e.target.checked}))} style={{ width:'18px', height:'18px', cursor:'pointer' }} />
+              <label htmlFor="is_active" style={{ fontSize:'0.88rem', fontWeight:'600', cursor:'pointer' }}>Ativa</label>
+            </div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:'10px', marginTop:'24px' }}>
+          <button onClick={salvar} style={{ flex:1, padding:'12px', background:'#d8438b', color:'#fff', border:'none', borderRadius:'12px', fontWeight:'800', fontSize:'0.9rem', cursor:'pointer' }}>
+            Salvar
+          </button>
+          <button onClick={() => setEditando(null)} style={{ padding:'12px 20px', background:'#f3f4f6', color:'#374151', border:'none', borderRadius:'12px', fontWeight:'700', cursor:'pointer' }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:'1.3rem', fontWeight:'800' }}>🏷️ Promoções</h2>
+          <p style={{ margin:'4px 0 0', fontSize:'0.83rem', color:'#6b7280' }}>Crie descontos automáticos ou cupons para suas clientes</p>
+        </div>
+        <button onClick={abrirNovo} style={{ padding:'10px 20px', background:'#d8438b', color:'#fff', border:'none', borderRadius:'12px', fontWeight:'800', fontSize:'0.88rem', cursor:'pointer' }}>
+          + Nova Promoção
+        </button>
+      </div>
+
+      {loading ? (
+        <p style={{ color:'#9ca3af', textAlign:'center', padding:'40px' }}>Carregando...</p>
+      ) : erro ? (
+        <div style={{ textAlign:'center', padding:'40px', color:'#dc2626' }}>
+          <p style={{ fontWeight:'700' }}>Erro ao carregar promoções</p>
+          <p style={{ fontSize:'0.85rem' }}>{erro}</p>
+          <button onClick={fetchPromos} style={{ marginTop:'12px', padding:'8px 20px', background:'#d8438b', color:'#fff', border:'none', borderRadius:'10px', fontWeight:'700', cursor:'pointer' }}>Tentar novamente</button>
+        </div>
+      ) : promos.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'60px 20px', color:'#9ca3af' }}>
+          <p style={{ fontSize:'2.5rem', marginBottom:'12px' }}>🏷️</p>
+          <p style={{ fontWeight:'700', color:'#374151' }}>Nenhuma promoção cadastrada</p>
+          <p style={{ fontSize:'0.85rem' }}>Crie sua primeira promoção clicando no botão acima.</p>
+        </div>
+      ) : (
+        <div style={{ display:'grid', gap:'12px' }}>
+          {promos.map(p => {
+            const isExpired = p.valid_until && p.valid_until < new Date().toISOString().split('T')[0];
+            const isFull    = p.max_uses && p.uses_count >= p.max_uses;
+            return (
+              <div key={p.id} style={{ background:'#fff', borderRadius:'16px', padding:'18px 20px', boxShadow:'0 2px 8px rgba(0,0,0,0.06)', border:`1.5px solid ${!p.is_active || isExpired || isFull ? '#e5e7eb' : '#fce7f3'}`, opacity: !p.is_active || isExpired || isFull ? 0.65 : 1 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px' }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'6px' }}>
+                      <span style={{ fontWeight:'800', fontSize:'0.95rem' }}>{p.name}</span>
+                      {p.code && <span style={{ background:'#fce7f3', color:'#d8438b', padding:'2px 10px', borderRadius:'999px', fontSize:'0.75rem', fontWeight:'700', letterSpacing:'1px' }}>{p.code}</span>}
+                      {!p.is_active && <span style={{ background:'#f3f4f6', color:'#9ca3af', padding:'2px 8px', borderRadius:'999px', fontSize:'0.72rem', fontWeight:'700' }}>INATIVA</span>}
+                      {isExpired  && <span style={{ background:'#fee2e2', color:'#dc2626', padding:'2px 8px', borderRadius:'999px', fontSize:'0.72rem', fontWeight:'700' }}>EXPIRADA</span>}
+                      {isFull     && <span style={{ background:'#fef3c7', color:'#92400e', padding:'2px 8px', borderRadius:'999px', fontSize:'0.72rem', fontWeight:'700' }}>ESGOTADA</span>}
+                    </div>
+                    <div style={{ fontSize:'0.82rem', color:'#6b7280', display:'flex', gap:'16px', flexWrap:'wrap' }}>
+                      <span>💸 {p.discount_type === 'percent' ? `${p.discount_value}% off` : `R$ ${p.discount_value.toFixed(2)} off`}</span>
+                      <span>📦 {catLabel[p.applies_to] || p.applies_to}</span>
+                      {p.valid_from  && <span>De: {new Date(p.valid_from +'T12:00').toLocaleDateString('pt-BR')}</span>}
+                      {p.valid_until && <span>Até: {new Date(p.valid_until+'T12:00').toLocaleDateString('pt-BR')}</span>}
+                      {p.max_uses    && <span>Usos: {p.uses_count}/{p.max_uses}</span>}
+                      {!p.max_uses   && <span>Usos: {p.uses_count}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:'8px', flexShrink:0 }}>
+                    <button onClick={() => toggleAtivo(p)} style={{ padding:'7px 12px', background: p.is_active ? '#dcfce7' : '#f3f4f6', color: p.is_active ? '#15803d' : '#6b7280', border:'none', borderRadius:'8px', fontWeight:'700', fontSize:'0.78rem', cursor:'pointer' }}>
+                      {p.is_active ? '✅ Ativa' : '⏸ Inativa'}
+                    </button>
+                    <button onClick={() => abrirEditar(p)} style={{ padding:'7px 12px', background:'#eff6ff', color:'#1d4ed8', border:'none', borderRadius:'8px', fontWeight:'700', fontSize:'0.78rem', cursor:'pointer' }}>
+                      ✏️
+                    </button>
+                    <button onClick={() => deletar(p.id)} style={{ padding:'7px 12px', background:'#fee2e2', color:'#dc2626', border:'none', borderRadius:'8px', fontWeight:'700', fontSize:'0.78rem', cursor:'pointer' }}>
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -857,6 +1693,7 @@ function agruparBloqueios(slots) {
 function fmtDiaMes(d) { const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}`; }
 
 function ConfiguracoesTab({ blockedSlots, onRefresh }) {
+  const isMobile = useMobile();
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [reason, setReason] = useState('');
@@ -883,50 +1720,59 @@ function ConfiguracoesTab({ blockedSlots, onRefresh }) {
   };
 
   const grupos = agruparBloqueios(blockedSlots);
+  const labelStyle = { fontSize: '0.82rem', fontWeight: '600', color: C.textMuted, display: 'block', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.04em' };
 
   return (
     <div style={{ display: 'grid', gap: '20px', maxWidth: '600px' }}>
       <Card>
-        <h3 style={{ color: 'var(--primary-color)', marginBottom: '8px', fontWeight: '700' }}>🔒 Fechar agenda</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '18px' }}>Selecione um dia ou período. As datas bloqueadas não aparecerão para agendamento.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <div className="form-group">
-            <label>Data de início *</label>
-            <input type="date" value={dateStart} min={hoje} onChange={e => { setDateStart(e.target.value); if (!dateEnd || dateEnd < e.target.value) setDateEnd(e.target.value); }} />
+        <h3 style={{ color: C.primaryDark, marginBottom: '6px', fontWeight: '800', fontSize: '1rem' }}>Fechar agenda</h3>
+        <p style={{ color: C.textMuted, fontSize: '0.88rem', marginBottom: '20px' }}>Selecione um dia ou período. As datas bloqueadas não aparecerão para agendamento.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+          <div>
+            <label style={labelStyle}>Data de início *</label>
+            <input type="date" value={dateStart} min={hoje}
+              onChange={e => { setDateStart(e.target.value); if (!dateEnd || dateEnd < e.target.value) setDateEnd(e.target.value); }}
+              style={inputStyle} />
           </div>
-          <div className="form-group">
-            <label>Data de fim</label>
-            <input type="date" value={dateEnd} min={dateStart || hoje} onChange={e => setDateEnd(e.target.value)} />
+          <div>
+            <label style={labelStyle}>Data de fim</label>
+            <input type="date" value={dateEnd} min={dateStart || hoje}
+              onChange={e => setDateEnd(e.target.value)}
+              style={inputStyle} />
           </div>
         </div>
-        <div className="form-group">
-          <label>Motivo (opcional)</label>
-          <input type="text" value={reason} onChange={e => setReason(e.target.value)} placeholder="Ex: Viagem, compromisso pessoal..." />
+        <div style={{ marginBottom: '16px' }}>
+          <label style={labelStyle}>Motivo (opcional)</label>
+          <input type="text" value={reason} onChange={e => setReason(e.target.value)}
+            placeholder="Ex: Viagem, compromisso pessoal..." style={inputStyle} />
         </div>
-        <button className="btn-primary" onClick={bloquear} disabled={loading}>{loading ? 'Bloqueando...' : '🔒 Bloquear período'}</button>
+        <PrimaryBtn onClick={bloquear} disabled={loading} style={{ width: '100%', padding: '13px' }}>
+          {loading ? 'Bloqueando...' : '🔒 Bloquear período'}
+        </PrimaryBtn>
       </Card>
 
       <Card>
-        <h3 style={{ color: 'var(--text-main)', marginBottom: '16px', fontWeight: '700' }}>
-          📅 Períodos bloqueados
-          {blockedSlots.length > 0 && <span style={{ fontSize: '0.8rem', fontWeight: '400', color: 'var(--text-muted)', marginLeft: '8px' }}>({blockedSlots.length} dia{blockedSlots.length > 1 ? 's' : ''})</span>}
+        <h3 style={{ color: C.text, marginBottom: '16px', fontWeight: '700', fontSize: '1rem' }}>
+          Períodos bloqueados
+          {blockedSlots.length > 0 && <span style={{ fontSize: '0.8rem', fontWeight: '400', color: C.textMuted, marginLeft: '8px' }}>({blockedSlots.length} dia{blockedSlots.length > 1 ? 's' : ''})</span>}
         </h3>
         {grupos.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Nenhuma data bloqueada no momento.</p>
+          <p style={{ color: C.textMuted, fontSize: '0.9rem' }}>Nenhuma data bloqueada no momento.</p>
         ) : (
           <div style={{ display: 'grid', gap: '10px' }}>
             {grupos.map((g, i) => {
               const single = g.inicio === g.fim;
               return (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: '#fdf1f6', borderRadius: '8px', gap: '10px' }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: '#fdf1f6', borderRadius: '12px', gap: '10px' }}>
                   <div style={{ flex: 1 }}>
-                    <strong style={{ color: 'var(--primary-color)', fontSize: '0.95rem' }}>
+                    <strong style={{ color: C.primaryDark, fontSize: '0.93rem' }}>
                       📅 {single ? fmtDiaMes(g.inicio) : `${fmtDiaMes(g.inicio)} → ${fmtDiaMes(g.fim)}`}
                     </strong>
-                    {!single && <span style={{ marginLeft: '8px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>({g.ids.length} dias)</span>}
-                    {g.reason && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '3px 0 0' }}>{g.reason}</p>}
+                    {!single && <span style={{ marginLeft: '8px', color: C.textMuted, fontSize: '0.82rem' }}>({g.ids.length} dias)</span>}
+                    {g.reason && <p style={{ color: C.textMuted, fontSize: '0.84rem', margin: '4px 0 0' }}>{g.reason}</p>}
                   </div>
-                  <button onClick={() => desbloquearGrupo(g.ids)} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                  <button onClick={() => desbloquearGrupo(g.ids)}
+                    style={{ background: C.dangerBg, color: C.danger, border: 'none', borderRadius: '10px', padding: '7px 14px', cursor: 'pointer', fontWeight: '700', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                     Desbloquear
                   </button>
                 </div>
@@ -942,33 +1788,20 @@ function ConfiguracoesTab({ blockedSlots, onRefresh }) {
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'agenda',     label: '📅 Agenda' },
-  { id: 'novo',       label: '➕ Novo Atendimento' },
-  { id: 'clientes',   label: '👩‍💼 Clientes' },
-  { id: 'catalogo',   label: '📸 Catálogo' },
-  { id: 'stats',      label: '📊 Estatísticas' },
-  { id: 'financeiro', label: '💰 Financeiro' },
-  { id: 'config',     label: '⚙️ Configurações' },
+  { id: 'agenda',     label: 'AGENDA',        icon: '📅' },
+  { id: 'novo',       label: 'NOVO ATEND.',   icon: '+' },
+  { id: 'clientes',   label: 'CLIENTES',      icon: '👤' },
+  { id: 'catalogo',   label: 'CATÁLOGO',      icon: '📔' },
+  { id: 'stats',      label: 'ESTATÍSTICAS',  icon: '📊' },
+  { id: 'financeiro', label: 'FINANCEIRO',    icon: '💰' },
+  { id: 'promocoes',  label: 'PROMOÇÕES',     icon: '🏷️' },
+  { id: 'config',     label: 'CONFIGURAÇÕES', icon: '⚙️' },
 ];
 
 export default function AdminDashboard() {
+  const isMobile = useMobile();
   // ── Auth ──────────────────────────────────────────────────────────────────
   const [token, setToken] = useState(() => sessionStorage.getItem('admin_token'));
-
-  // Ouve o evento disparado pelo interceptor axios quando recebe 401
-  useEffect(() => {
-    const handleExpired = () => setToken(null);
-    window.addEventListener('admin-session-expired', handleExpired);
-    return () => window.removeEventListener('admin-session-expired', handleExpired);
-  }, []);
-
-  const logout = () => {
-    sessionStorage.removeItem('admin_token');
-    setToken(null);
-  };
-
-  // Se não tiver token, mostra a tela de login
-  if (!token) return <AdminLogin onLogin={setToken} />;
 
   // ── Estado do painel ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab]       = useState('agenda');
@@ -979,6 +1812,25 @@ export default function AdminDashboard() {
   const [clients, setClients]           = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
+  const [currentTime, setCurrentTime]   = useState(() => new Date().toLocaleTimeString('pt-BR'));
+  const [paymentAlerts, setPaymentAlerts] = useState([]);
+
+  const prevAptStatusRef = useRef(new Map()); // id → status snapshot
+  const notifiedRef      = useRef(new Set()); // ids já notificados
+
+  const dismissAlert = (id) => setPaymentAlerts(prev => prev.filter(a => a.id !== id));
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString('pt-BR')), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Ouve o evento disparado pelo interceptor axios quando recebe 401
+  useEffect(() => {
+    const handleExpired = () => setToken(null);
+    window.addEventListener('admin-session-expired', handleExpired);
+    return () => window.removeEventListener('admin-session-expired', handleExpired);
+  }, []);
 
   const fetchAll = async () => {
     try {
@@ -989,6 +1841,15 @@ export default function AdminDashboard() {
         api.get('/blocked-slots/'),
         api.get('/clients/'),
       ]);
+
+      // Detecta pagamentos confirmados comparando com snapshot anterior
+      const newlyPaid = a.data.filter(apt => {
+        const prev = prevAptStatusRef.current.get(apt.id);
+        return prev === 'aguardando_pagamento' && apt.status === 'scheduled' && !notifiedRef.current.has(apt.id);
+      });
+      newlyPaid.forEach(apt => notifiedRef.current.add(apt.id));
+      if (newlyPaid.length > 0) setPaymentAlerts(prev => [...prev, ...newlyPaid]);
+
       setAppointments(a.data);
       setServices(s.data);
       setStats(st.data);
@@ -1001,64 +1862,290 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { if (token) fetchAll(); }, [token]);
+
+  // Sincroniza snapshot de status a cada vez que appointments muda
+  useEffect(() => {
+    appointments.forEach(a => prevAptStatusRef.current.set(a.id, a.status));
+  }, [appointments]);
+
+  // Polling para detectar pagamentos quando há agendamentos aguardando
+  useEffect(() => {
+    if (!token) return;
+    const tick = async () => {
+      const hasAwaiting = [...prevAptStatusRef.current.values()].some(s => s === 'aguardando_pagamento');
+      if (!hasAwaiting) return;
+      try {
+        const { data: fresh } = await api.get('/appointments/');
+        const newlyPaid = fresh.filter(apt => {
+          const prev = prevAptStatusRef.current.get(apt.id);
+          return prev === 'aguardando_pagamento' && apt.status === 'scheduled' && !notifiedRef.current.has(apt.id);
+        });
+        if (newlyPaid.length > 0) {
+          newlyPaid.forEach(apt => notifiedRef.current.add(apt.id));
+          setPaymentAlerts(prev => [...prev, ...newlyPaid]);
+          setAppointments(fresh);
+        }
+      } catch {}
+    };
+    const interval = setInterval(tick, 15000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  const logout = () => {
+    sessionStorage.removeItem('admin_token');
+    setToken(null);
+  };
+
+  // Se não tiver token, mostra a tela de login
+  if (!token) return <AdminLogin onLogin={setToken} />;
 
   if (loading) return (
-    <div style={{ textAlign: 'center', marginTop: '80px' }}>
-      <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⏳</div>
-      <h2 className="title">Carregando painel...</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Se demorar muito, o servidor pode estar iniciando — aguarde 30 segundos.</p>
+    <div style={{ textAlign: 'center', marginTop: '100px', padding: '20px' }}>
+      <div style={{ width: '48px', height: '48px', border: `4px solid #f3f4f6`, borderTop: `4px solid ${C.primary}`, borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite' }} />
+      <h2 style={{ color: C.text, fontWeight: '700', marginBottom: '8px' }}>Carregando painel...</h2>
+      <p style={{ color: C.textMuted, fontSize: '0.9rem' }}>Se demorar muito, o servidor pode estar iniciando — aguarde 30 segundos.</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 
   if (error) return (
-    <div style={{ textAlign: 'center', marginTop: '80px', padding: '20px' }}>
-      <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚠️</div>
-      <h2 className="title" style={{ color: '#d9534f' }}>Servidor offline</h2>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>{error}</p>
-      <button className="btn-primary" style={{ maxWidth: '220px', margin: '0 auto' }}
-        onClick={() => { setError(null); setLoading(true); fetchAll(); }}>
+    <div style={{ textAlign: 'center', marginTop: '100px', padding: '20px' }}>
+      <div style={{ fontSize: '3rem', marginBottom: '12px' }}>⚠️</div>
+      <h2 style={{ color: C.danger, fontWeight: '700', marginBottom: '8px' }}>Servidor offline</h2>
+      <p style={{ color: C.textMuted, marginBottom: '24px' }}>{error}</p>
+      <PrimaryBtn onClick={() => { setError(null); setLoading(true); fetchAll(); }} style={{ margin: '0 auto' }}>
         Tentar novamente
-      </button>
+      </PrimaryBtn>
     </div>
   );
 
+  const pendingCount = appointments.filter(a => a.status === 'pending').length;
+
+  const currentDate = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-color)' }}>
-      <div style={{ background: '#fff', borderBottom: '1px solid var(--border-color)', padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ color: 'var(--primary-color)', fontWeight: '800', fontSize: '1.5rem', margin: 0 }}>
-          ✨ Painel da Giovanna
-        </h2>
-        <button onClick={logout} style={{
-          padding: '7px 14px', background: '#f3f4f6', color: 'var(--text-muted)',
-          border: 'none', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '600',
-          cursor: 'pointer',
-        }}>
-          Sair 🔒
-        </button>
+    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: C.fontSans }}>
+      {/* Header */}
+      <div style={{
+        background: 'rgba(255,255,255,0.72)',
+        backdropFilter: 'blur(24px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+        borderBottom: '1px solid rgba(216,67,139,0.12)',
+        padding: isMobile ? '0 14px' : '0 28px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        height: '72px',
+        boxShadow: '0 2px 20px rgba(160,25,94,0.08)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+      }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{
+            width: '46px', height: '46px',
+            background: gradientBtn,
+            borderRadius: '14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.4rem',
+            boxShadow: '0 6px 18px rgba(160,25,94,0.4)',
+          }}>
+            ✨
+          </div>
+          <div>
+            <p style={{ margin: 0, lineHeight: 1.15, fontFamily: C.fontDisplay }}>
+              <span style={{ fontWeight: '900', fontSize: '1.1rem', color: C.text }}>Giovanna</span>{' '}
+              <span style={{ fontWeight: '900', fontSize: '1.1rem', color: C.primary, fontStyle: 'italic' }}>Beauty</span>
+            </p>
+            <p style={{ margin: 0, fontSize: '0.65rem', color: C.textMuted, fontWeight: '500', letterSpacing: '0.03em', fontFamily: C.fontSans }}>
+              + Lash &amp; Brow · High Aesthetic Studio +
+            </p>
+          </div>
+        </div>
+
+        {/* Right: date/time + user + logout */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '20px' }}>
+          {!isMobile && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: '0.78rem' }}>🗓</span>
+                <span style={{ fontSize: '0.82rem', color: C.text, fontWeight: '500', fontFamily: C.fontSans }}>{currentDate}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end', marginTop: '2px' }}>
+                <span style={{ fontSize: '0.78rem' }}>⏰</span>
+                <span style={{ fontSize: '0.82rem', color: C.textMuted, fontFamily: C.fontMono, letterSpacing: '0.04em' }}>{currentTime}</span>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '40px', height: '40px',
+              background: gradientBtn,
+              borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontWeight: '800', fontSize: '1.05rem', flexShrink: 0,
+              fontFamily: C.fontDisplay,
+              boxShadow: '0 4px 14px rgba(160,25,94,0.4)',
+            }}>
+              G
+            </div>
+            <div>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '0.88rem', color: C.text, fontFamily: C.fontDisplay }}>Giovanna</p>
+              <p style={{ margin: 0, fontSize: '0.68rem', color: C.primary, fontWeight: '600', fontFamily: C.fontSans }}>Lash Expert</p>
+            </div>
+          </div>
+
+          <button
+            onClick={logout}
+            title="Sair"
+            className="btn-tactile"
+            style={{
+              width: '38px', height: '38px',
+              background: 'rgba(216,67,139,0.07)',
+              color: C.primary,
+              border: '1px solid rgba(216,67,139,0.2)',
+              borderRadius: '12px',
+              fontSize: '1rem',
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = C.dangerBg; e.currentTarget.style.color = C.danger; e.currentTarget.style.borderColor = 'rgba(220,38,38,0.3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(216,67,139,0.07)'; e.currentTarget.style.color = C.primary; e.currentTarget.style.borderColor = 'rgba(216,67,139,0.2)'; }}
+          >
+            →
+          </button>
+        </div>
       </div>
 
-      <div style={{ background: '#fff', borderBottom: '1px solid var(--border-color)', display: 'flex', overflowX: 'auto' }}>
-        {TABS.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-            padding: '14px 16px', border: 'none', background: 'none',
-            borderBottom: activeTab === tab.id ? '3px solid var(--primary-color)' : '3px solid transparent',
-            color: activeTab === tab.id ? 'var(--primary-color)' : 'var(--text-muted)',
-            fontWeight: activeTab === tab.id ? '700' : '400',
-            cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.85rem', transition: 'all 0.2s'
-          }}>{tab.label}</button>
-        ))}
+      {/* Navigation tabs */}
+      <div style={{
+        background: 'rgba(255,255,255,0.65)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(216,67,139,0.1)',
+        display: 'flex',
+        overflowX: 'auto',
+        padding: '10px 20px',
+        gap: '4px',
+        scrollbarWidth: 'none',
+      }}>
+        {TABS.map(tab => {
+          const active = activeTab === tab.id;
+          const hasBadge = tab.id === 'agenda' && pendingCount > 0;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="btn-tactile"
+              style={{
+                padding: '8px 16px',
+                border: active ? 'none' : '1px solid rgba(216,67,139,0.12)',
+                background: active ? gradientBtn : 'rgba(255,255,255,0.4)',
+                color: active ? '#fff' : C.textMuted,
+                fontWeight: active ? '700' : '500',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                fontSize: '0.76rem',
+                letterSpacing: '0.01em',
+                borderRadius: '20px',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontFamily: C.fontSans,
+                boxShadow: active ? '0 4px 14px rgba(160,25,94,0.35)' : 'none',
+              }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(216,67,139,0.08)'; e.currentTarget.style.color = C.primaryDark; e.currentTarget.style.borderColor = 'rgba(216,67,139,0.25)'; } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.4)'; e.currentTarget.style.color = C.textMuted; e.currentTarget.style.borderColor = 'rgba(216,67,139,0.12)'; } }}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+              {hasBadge && (
+                <span style={{
+                  background: active ? 'rgba(255,255,255,0.28)' : C.warning,
+                  color: '#fff',
+                  borderRadius: '10px', padding: '1px 7px',
+                  fontSize: '0.65rem', fontWeight: '800',
+                  fontFamily: C.fontMono,
+                }}>
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '24px 16px' }}>
+      {/* Content */}
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: isMobile ? '16px 12px' : '28px 20px' }}>
         {activeTab === 'agenda'     && <AgendaTab appointments={appointments} onRefresh={fetchAll} />}
         {activeTab === 'novo'       && <NovoAtendimentoTab services={services} onRefresh={fetchAll} />}
         {activeTab === 'clientes'   && <ClientesTab clients={clients} appointments={appointments} onRefresh={fetchAll} />}
         {activeTab === 'catalogo'   && <CatalogoTab services={services} onRefresh={fetchAll} />}
         {activeTab === 'stats'      && <EstatisticasTab stats={stats} appointments={appointments} />}
         {activeTab === 'financeiro' && <FinanceiroTab stats={stats} />}
+        {activeTab === 'promocoes'  && <PromocoesTab />}
         {activeTab === 'config'     && <ConfiguracoesTab blockedSlots={blockedSlots} onRefresh={fetchAll} />}
       </div>
+
+      {/* Toasts de pagamento confirmado */}
+      {paymentAlerts.length > 0 && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          display: 'flex', flexDirection: 'column', gap: '12px',
+          maxWidth: isMobile ? 'calc(100vw - 32px)' : '340px',
+        }}>
+          {paymentAlerts.map(apt => (
+            <div key={apt.id} style={{
+              background: '#ecfdf5',
+              border: '2px solid #10b981',
+              borderRadius: '18px',
+              padding: '18px 18px 14px',
+              boxShadow: '0 8px 32px rgba(16,185,129,0.28)',
+              fontFamily: C.fontSans,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>💸</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontWeight: '800', color: '#065f46', fontSize: '0.93rem' }}>
+                    {apt.client?.name?.split(' ')[0]} pagou o sinal!
+                  </p>
+                  <p style={{ margin: '2px 0 0', color: '#047857', fontSize: '0.8rem' }}>
+                    {apt.service?.name} · {fmtHora(apt.scheduled_at)} · {fmtData(apt.scheduled_at)}
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => { abrirWpp(apt.client?.phone, msgPagamentoConfirmado(apt)); dismissAlert(apt.id); }}
+                  style={{
+                    flex: 1, padding: '10px', background: '#25D366', color: '#fff',
+                    border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '0.83rem',
+                    cursor: 'pointer', fontFamily: C.fontSans,
+                    boxShadow: '0 4px 14px rgba(37,211,102,0.4)',
+                  }}
+                >
+                  📲 Confirmar no WhatsApp
+                </button>
+                <button
+                  onClick={() => dismissAlert(apt.id)}
+                  style={{
+                    padding: '10px 14px', background: 'rgba(0,0,0,0.06)',
+                    border: 'none', borderRadius: '12px', cursor: 'pointer',
+                    fontSize: '0.9rem', color: '#6b7280', fontWeight: '600',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text as sql_text
 from pydantic import BaseModel
@@ -10,6 +13,7 @@ import mercadopago
 import hashlib
 import hmac
 import os
+import concurrent.futures
 
 import models
 import schemas
@@ -19,19 +23,16 @@ from database import engine, SessionLocal
 # Cria as tabelas (novas tabelas apenas — não altera existentes)
 models.Base.metadata.create_all(bind=engine)
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="API Salão de Cílios - Giovanna Soares")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-# Em produção, defina no Render:
-#   ALLOWED_ORIGINS=https://sistema-salao-cilios.onrender.com
-# Múltiplas origens: separar por vírgula (sem espaço)
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
-ALLOWED_ORIGINS = _raw_origins.split(",") if _raw_origins != "*" else ["*"]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -61,30 +62,164 @@ def verify_admin(credentials: HTTPAuthorizationCredentials = Depends(_http_beare
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    """Diagnóstico público: confirma banco conectado e mostra contagens."""
+    db_url = os.getenv("DATABASE_URL", "sqlite")
+    db_type = "postgresql" if "postgresql" in db_url or "postgres" in db_url else "sqlite"
+    try:
+        clients_count     = db.query(models.Client).count()
+        appointments_count = db.query(models.Appointment).count()
+        return {
+            "status": "ok",
+            "db_type": db_type,
+            "clients": clients_count,
+            "appointments": appointments_count,
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+# ─── SEED DE SERVIÇOS ─────────────────────────────────────────────────────────
+_CATALOG = [
+    {"name": "Volume Brasileiro (Fio Y) - Aplicação",                        "category": "cilios",      "base_price": 115.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Brasileiro (Fio Y) - Manutenção (15 a 20 dias)",        "category": "cilios",      "base_price":  75.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Brasileiro (Fio Y) - Manutenção (Até 25 dias)",         "category": "cilios",      "base_price":  80.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Egípcio (Fio 4D) - Aplicação",                          "category": "cilios",      "base_price": 120.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Egípcio (Fio 4D) - Manutenção (15 a 20 dias)",         "category": "cilios",      "base_price":  80.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Egípcio (Fio 4D) - Manutenção (Até 25 dias)",          "category": "cilios",      "base_price":  85.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Luxxo (Fio 5D) - Aplicação",                            "category": "cilios",      "base_price": 125.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Luxxo (Fio 5D) - Manutenção (15 a 20 dias)",           "category": "cilios",      "base_price":  85.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Luxxo (Fio 5D) - Manutenção (Até 25 dias)",            "category": "cilios",      "base_price":  90.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Glamour (Fio 6D) - Aplicação",                          "category": "cilios",      "base_price": 130.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Glamour (Fio 6D) - Manutenção (15 a 20 dias)",         "category": "cilios",      "base_price":  90.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Glamour (Fio 6D) - Manutenção (Até 25 dias)",          "category": "cilios",      "base_price":  95.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Foxy Eyes (Fio 5D Curvature M) - Aplicação",            "category": "cilios",      "base_price": 130.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
+    {"name": "Volume Foxy Eyes (Fio 5D Curvature M) - Manutenção (15a20d)", "category": "cilios",      "base_price":  90.0,  "deposit_amount": 30.0,  "estimated_minutes": 120},
+    {"name": "Volume Mega Brasileiro (Fio Y CAPPING)",                        "category": "cilios",      "base_price": 135.0,  "deposit_amount": 30.0,  "estimated_minutes": 180},
+    {"name": "Volume Mega Egípcio (Fio 4D CAPPING)",                         "category": "cilios",      "base_price": 140.0,  "deposit_amount": 30.0,  "estimated_minutes": 180},
+    {"name": "Volume Mega Luxxo (Fio 5D CAPPING)",                           "category": "cilios",      "base_price": 145.0,  "deposit_amount": 30.0,  "estimated_minutes": 180},
+    {"name": "Brow Lamination Simples",                                       "category": "sobrancelha", "base_price":  85.0,  "deposit_amount": 15.0,  "estimated_minutes":  60},
+    {"name": "Brow Lamination com Tintura",                                   "category": "sobrancelha", "base_price":  95.0,  "deposit_amount": 15.0,  "estimated_minutes":  80},
+    {"name": "Design Personalizado de Sobrancelhas",                          "category": "sobrancelha", "base_price":  30.0,  "deposit_amount": 15.0,  "estimated_minutes":  45},
+    {"name": "Design Personalizado com Henna",                                "category": "sobrancelha", "base_price":  40.0,  "deposit_amount": 15.0,  "estimated_minutes":  60},
+    {"name": "Depilação de Buço",                                             "category": "sobrancelha", "base_price":  10.0,  "deposit_amount":  0.0,  "estimated_minutes":  20},
+    {"name": "Remoção Química (Cílios feitos por mim + Nova Aplicação)",      "category": "remocao",     "base_price":  20.0,  "deposit_amount":  0.0,  "estimated_minutes":  40},
+    {"name": "Remoção Química (Após 3 manutenções com aviso prévio)",         "category": "remocao",     "base_price":  10.0,  "deposit_amount":  0.0,  "estimated_minutes":  40},
+    {"name": "Remoção de Extensão de Outras Profissionais",                   "category": "remocao",     "base_price":  25.0,  "deposit_amount":  0.0,  "estimated_minutes":  50},
+    {"name": "Remoção de Tufos",                                              "category": "remocao",     "base_price":  30.0,  "deposit_amount":  0.0,  "estimated_minutes":  50},
+]
+
+def _seed_services(db):
+    for item in _CATALOG:
+        db.add(models.Service(**item))
+    db.commit()
+
 # ─── MIGRAÇÃO AUTOMÁTICA ──────────────────────────────────────────────────────
 @app.on_event("startup")
 def run_migrations():
     """Adiciona colunas novas ao banco sem perder dados existentes."""
-    novos_campos = [
-        "ALTER TABLE clients ADD COLUMN instagram TEXT",
-        "ALTER TABLE clients ADD COLUMN favorite_volume TEXT",
-        "ALTER TABLE clients ADD COLUMN sensitivity TEXT",
-        "ALTER TABLE clients ADD COLUMN maintenance_frequency INTEGER",
-        "ALTER TABLE clients ADD COLUMN no_show_count INTEGER DEFAULT 0",
-        "ALTER TABLE clients ADD COLUMN cancellation_count INTEGER DEFAULT 0",
-        "ALTER TABLE clients ADD COLUMN is_blocked INTEGER DEFAULT 0",
-        "ALTER TABLE services ADD COLUMN is_active INTEGER DEFAULT 1",
-        "ALTER TABLE financials ADD COLUMN refund_amount REAL",
-        "ALTER TABLE financials ADD COLUMN refund_reason TEXT",
-        "ALTER TABLE financials ADD COLUMN mp_payment_id TEXT",
+    try:
+        _run_migrations_inner()
+    except Exception as e:
+        print(f"[startup] Aviso: migração falhou ({e}) — continuando mesmo assim.")
+
+
+def _run_migrations_inner():
+    db_url = os.getenv("DATABASE_URL", "sqlite:///./banco_salao.db")
+
+    # Colunas opcionais que podem não existir em bancos antigos
+    pg_columns = [
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS instagram TEXT",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS favorite_volume TEXT",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS sensitivity TEXT",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS maintenance_frequency INTEGER",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS no_show_count INTEGER DEFAULT 0",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS cancellation_count INTEGER DEFAULT 0",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE services ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS refund_amount FLOAT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS refund_reason TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS mp_payment_id TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS pix_qr_code_base64 TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS pix_copia_cola TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS promo_code TEXT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS discount_amount FLOAT",
     ]
-    with engine.connect() as conn:
-        for sql in novos_campos:
-            try:
-                conn.execute(sql_text(sql))
-                conn.commit()
-            except Exception:
-                pass  # Coluna já existe — OK
+
+    if db_url.startswith("sqlite"):
+        import sqlite3 as _sqlite3
+        db_path = db_url.replace("sqlite:///", "")
+        raw = _sqlite3.connect(db_path)
+        try:
+            def _cols(table):
+                return {r[1] for r in raw.execute(f"PRAGMA table_info({table})")}
+            needed = {
+                "clients": [("instagram","TEXT"),("favorite_volume","TEXT"),("sensitivity","TEXT"),("maintenance_frequency","INTEGER"),("no_show_count","INTEGER DEFAULT 0"),("cancellation_count","INTEGER DEFAULT 0"),("is_blocked","INTEGER DEFAULT 0")],
+                "services": [("is_active","INTEGER DEFAULT 1")],
+                "financials": [("refund_amount","REAL"),("refund_reason","TEXT"),("mp_payment_id","TEXT"),("pix_qr_code_base64","TEXT"),("pix_copia_cola","TEXT"),("promo_code","TEXT"),("discount_amount","REAL")],
+            }
+            for table, columns in needed.items():
+                existing = _cols(table)
+                for col, col_type in columns:
+                    if col not in existing:
+                        raw.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
+            raw.commit()
+        finally:
+            raw.close()
+    else:
+        # PostgreSQL suporta IF NOT EXISTS
+        with engine.connect() as conn:
+            for sql in pg_columns:
+                try:
+                    conn.execute(sql_text(sql))
+                    conn.commit()
+                except Exception:
+                    pass
+
+    # Auto-seed serviços se o banco estiver vazio
+    db = SessionLocal()
+    try:
+        if db.query(models.Service).count() == 0:
+            _seed_services(db)
+    finally:
+        db.close()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HEALTH CHECK
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/health/")
+def health_check(db: Session = Depends(get_db)):
+    db_url = os.getenv("DATABASE_URL", "sqlite:///./banco_salao.db")
+    db_type = "postgresql" if not db_url.startswith("sqlite") else "sqlite"
+    # Máscara: mostra só o host para não expor credenciais
+    try:
+        if db_type == "postgresql":
+            # postgres://user:pass@host:port/db → mostra só host
+            host_part = db_url.split("@")[-1].split("/")[0] if "@" in db_url else "?"
+        else:
+            host_part = db_url.replace("sqlite:///", "")
+    except Exception:
+        host_part = "?"
+
+    try:
+        counts = {
+            "clients":      db.query(models.Client).count(),
+            "appointments": db.query(models.Appointment).count(),
+            "services":     db.query(models.Service).count(),
+        }
+        db_ok = True
+    except Exception as e:
+        counts = {}
+        db_ok = False
+
+    return {
+        "status": "ok" if db_ok else "db_error",
+        "db_type": db_type,
+        "db_host": host_part,
+        "counts": counts,
+    }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AUTH — LOGIN
@@ -94,11 +229,8 @@ class LoginRequest(BaseModel):
     password: str
 
 @app.post("/auth/login/")
-def login(data: LoginRequest):
-    """
-    Autentica a Giovanna. Retorna JWT válido por JWT_EXPIRE_HOURS horas.
-    Configure ADMIN_PASSWORD e JWT_SECRET nas variáveis de ambiente do Render.
-    """
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginRequest):
     if not auth.verificar_senha(data.password):
         raise HTTPException(status_code=401, detail="Senha incorreta.")
     token = auth.criar_token()
@@ -160,6 +292,8 @@ class BookingRequest(BaseModel):
     is_maintenance: bool = False
     has_henna_allergy: bool = False
     medical_restrictions: Optional[str] = None
+    promo_code: Optional[str] = None
+    pay_full: bool = False
 
 @app.post("/appointments/")
 def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
@@ -188,64 +322,92 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
         )
 
     total_value = service.base_price
-    balance_due = total_value - service.deposit_amount
+    discount_amount = 0.0
+    applied_promo_code = None
 
+    # Valida e aplica promoção
+    if booking.promo_code:
+        from datetime import date as _date
+        promo = db.query(models.Promotion).filter(
+            models.Promotion.code == booking.promo_code.strip().upper(),
+            models.Promotion.is_active == True,
+        ).first()
+        if not promo:
+            raise HTTPException(status_code=400, detail="Cupom inválido ou inativo.")
+        today = _date.today()
+        if promo.valid_from and today < _date.fromisoformat(promo.valid_from):
+            raise HTTPException(status_code=400, detail="Este cupom ainda não está ativo.")
+        if promo.valid_until and today > _date.fromisoformat(promo.valid_until):
+            raise HTTPException(status_code=400, detail="Este cupom está expirado.")
+        if promo.max_uses and promo.uses_count >= promo.max_uses:
+            raise HTTPException(status_code=400, detail="Este cupom atingiu o limite de usos.")
+        if promo.applies_to != "all" and service.category != promo.applies_to:
+            raise HTTPException(status_code=400, detail="Este cupom não se aplica a este serviço.")
+        if promo.discount_type == "percent":
+            discount_amount = round(total_value * promo.discount_value / 100, 2)
+        else:
+            discount_amount = min(promo.discount_value, total_value)
+        promo.uses_count += 1
+        applied_promo_code = promo.code
+
+    total_value = round(total_value - discount_amount, 2)
+    balance_due = round(total_value - service.deposit_amount, 2)
+    if balance_due < 0:
+        balance_due = 0.0
+
+    # Serviços até R$50 ou cliente escolheu pagar tudo → sem sinal
+    if service.base_price <= 50 or booking.pay_full:
+        balance_due = 0.0
+
+    deposit = round(total_value - balance_due, 2)
+
+    # Cria agendamento direto em aguardando_pagamento — sem etapa de aprovação
     appointment = models.Appointment(
         client_id=client.id,
         service_id=service.id,
         scheduled_at=booking.scheduled_at,
         is_maintenance=booking.is_maintenance,
+        status="aguardando_pagamento",
     )
     db.add(appointment)
     db.commit()
     db.refresh(appointment)
 
-    financial = models.Financial(
-        appointment_id=appointment.id,
-        total_value=total_value,
-        deposit_paid=0.0,
-        balance_due=balance_due,
+    db.execute(
+        sql_text(
+            "INSERT INTO financials (appointment_id, total_value, deposit_paid, balance_due, promo_code, discount_amount)"
+            " VALUES (:aid, :tv, :dp, :bd, :pc, :da)"
+        ),
+        {"aid": appointment.id, "tv": total_value, "dp": 0.0, "bd": balance_due,
+         "pc": applied_promo_code, "da": discount_amount if discount_amount > 0 else None},
     )
-    db.add(financial)
     db.commit()
 
-    # Gera Pix via Mercado Pago
-    pix_copia_cola = None
-    pix_qr_code_base64 = None
-
-    if MP_ACCESS_TOKEN != "APP_USR-TESTE-123":
-        payment_data = {
-            "transaction_amount": service.deposit_amount,
-            "description": f"Sinal - {service.name} (Horário #{appointment.id})",
-            "payment_method_id": "pix",
-            "payer": {
-                "email": "cliente@giovannasoares.com",
-                "first_name": client.name,
-            },
-        }
+    # Gera PIX imediatamente
+    fin = db.query(models.Financial).filter(
+        models.Financial.appointment_id == appointment.id
+    ).first()
+    pix_error = None
+    if fin and deposit > 0:
         try:
-            mp_response = sdk.payment().create(payment_data)
-            if mp_response["status"] == 201:
-                payment_id = str(mp_response["response"]["id"])
-                pix_info = mp_response["response"]["point_of_interaction"]["transaction_data"]
-                pix_copia_cola      = pix_info["qr_code"]
-                pix_qr_code_base64  = pix_info["qr_code_base64"]
-                # Salva o ID do pagamento para o webhook confirmar depois
-                financial.mp_payment_id = payment_id
-                db.commit()
-        except Exception:
-            pass  # Agendamento salvo; Pix resolvido manualmente
+            _generate_pix(fin, appointment, deposit)
+            db.commit()
+        except Exception as e:
+            pix_error = str(e)
 
     return {
-        "message": "Agendamento criado com sucesso!",
         "appointment_id": appointment.id,
-        "pix_copia_cola": pix_copia_cola,
-        "pix_qr_code_base64": pix_qr_code_base64,
-        "total_value": total_value,
-        "deposit_amount": service.deposit_amount,
-        "balance_due": balance_due,
+        "status": appointment.status,
         "service_name": service.name,
         "client_name": client.name,
+        "scheduled_at": appointment.scheduled_at.isoformat(),
+        "discount_amount": discount_amount,
+        "total_value": total_value,
+        "deposit_amount": deposit,
+        "balance_due": balance_due,
+        "pix_qr_code_base64": fin.pix_qr_code_base64 if fin and not pix_error else None,
+        "pix_copia_cola": fin.pix_copia_cola if fin and not pix_error else None,
+        **({"pix_error": pix_error} if pix_error else {}),
     }
 
 @app.get("/appointments/", response_model=list[schemas.AppointmentResponse])
@@ -254,6 +416,123 @@ def get_appointments(
     _: None = Depends(verify_admin),
 ):
     return db.query(models.Appointment).order_by(models.Appointment.scheduled_at.asc()).all()
+
+@app.get("/appointments/{appointment_id}/status")
+def get_appointment_status(appointment_id: int, db: Session = Depends(get_db)):
+    """Público — cliente faz polling para saber se foi confirmado."""
+    apt = db.query(models.Appointment).filter(models.Appointment.id == appointment_id).first()
+    if not apt:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    resp = {
+        "id": apt.id,
+        "status": apt.status,
+        "service_name": apt.service.name if apt.service else None,
+        "client_name": apt.client.name if apt.client else None,
+        "scheduled_at": apt.scheduled_at.isoformat(),
+    }
+    if apt.status in ("confirmed", "aguardando_pagamento", "scheduled") and apt.financial:
+        resp["pix_copia_cola"]     = apt.financial.pix_copia_cola
+        resp["pix_qr_code_base64"] = apt.financial.pix_qr_code_base64
+        resp["total_value"]        = apt.financial.total_value
+        resp["deposit_amount"]     = apt.financial.total_value - apt.financial.balance_due
+        resp["balance_due"]        = apt.financial.balance_due
+        resp["deposit_paid"]       = apt.financial.deposit_paid
+    return resp
+
+class StatusUpdate(BaseModel):
+    status: str
+
+def _generate_pix(fin, apt, deposit_amount: float):
+    """Calls MP to create a Pix payment and writes QR data into fin (caller must commit)."""
+    phone_digits = "".join(filter(str.isdigit, apt.client.phone or ""))
+    payer_email = (
+        f"{phone_digits}@cliente.salaodebeleza.com"
+        if phone_digits
+        else "cliente@salaodebeleza.com"
+    )
+    service_name = (apt.service.name if apt.service else "Serviço")[:50]
+    payment_data = {
+        "transaction_amount": round(float(deposit_amount), 2),
+        "description": f"Sinal – {service_name}",
+        "payment_method_id": "pix",
+        "payer": {"email": payer_email},
+    }
+    result = sdk.payment().create(payment_data)
+    if result.get("status") in (200, 201):
+        resp = result["response"]
+        fin.mp_payment_id = str(resp.get("id", ""))
+        td = resp.get("point_of_interaction", {}).get("transaction_data", {})
+        fin.pix_qr_code_base64 = td.get("qr_code_base64", "")
+        fin.pix_copia_cola = td.get("qr_code", "")
+
+
+@app.patch("/appointments/{appointment_id}/status")
+def update_appointment_status(
+    appointment_id: int,
+    data: StatusUpdate,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    """Admin confirma ou recusa um agendamento pendente."""
+    valid = {"pending", "confirmed", "scheduled", "rejected", "completed", "no_show", "aguardando_pagamento"}
+    if data.status not in valid:
+        raise HTTPException(status_code=400, detail="Status inválido.")
+    apt = db.query(models.Appointment).filter(models.Appointment.id == appointment_id).first()
+    if not apt:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    apt.status = data.status
+
+    # Auto-generate Pix when confirming (only if deposit > 0 and not already generated)
+    pix_generated = False
+    pix_error = None
+    if data.status == "aguardando_pagamento" and apt.financial and apt.client:
+        fin = apt.financial
+        deposit = round(fin.total_value - fin.balance_due, 2)
+        if deposit > 0 and not fin.pix_copia_cola:
+            try:
+                _generate_pix(fin, apt, deposit)
+                pix_generated = True
+            except Exception as e:
+                pix_error = str(e)
+
+    db.commit()
+    db.refresh(apt)
+    return {
+        "message": "Status atualizado!",
+        "status": apt.status,
+        "pix_generated": pix_generated,
+        "pix_copia_cola": apt.financial.pix_copia_cola if apt.financial else None,
+        **({"pix_error": pix_error} if pix_error else {}),
+    }
+
+
+@app.post("/appointments/{appointment_id}/gerar-pix/")
+def gerar_pix(
+    appointment_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    """Gera (ou re-gera) o Pix de sinal para um agendamento confirmado."""
+    apt = db.query(models.Appointment).filter(models.Appointment.id == appointment_id).first()
+    if not apt:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    if not apt.financial or not apt.client:
+        raise HTTPException(status_code=400, detail="Agendamento sem registro financeiro ou cliente.")
+    fin = apt.financial
+    deposit = round(fin.total_value - fin.balance_due, 2)
+    if deposit <= 0:
+        raise HTTPException(status_code=400, detail="Este serviço não exige sinal (depósito = R$ 0).")
+    try:
+        _generate_pix(fin, apt, deposit)
+        db.commit()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erro ao gerar Pix no Mercado Pago: {e}")
+    return {
+        "message": "Pix gerado com sucesso!",
+        "mp_payment_id": fin.mp_payment_id,
+        "pix_copia_cola": fin.pix_copia_cola,
+        "pix_qr_code_base64": fin.pix_qr_code_base64,
+    }
 
 @app.post("/appointments/admin/")
 def create_admin_booking(
@@ -549,11 +828,124 @@ def minha_conta(phone: str, db: Session = Depends(get_db)):
                 "scheduled_at": a.scheduled_at.isoformat(),
                 "status": a.status,
                 "service_name": a.service.name if a.service else None,
+                "service_id": a.service_id,
                 "total_value": a.financial.total_value if a.financial else None,
+                "deposit_amount": (a.financial.total_value - a.financial.balance_due) if a.financial else None,
                 "balance_due": a.financial.balance_due if a.financial else None,
+                "pix_qr_code_base64": a.financial.pix_qr_code_base64 if a.financial else None,
+                "pix_copia_cola": a.financial.pix_copia_cola if a.financial else None,
             }
             for a in apts
         ],
+    }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PROMOÇÕES
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/promotions/", response_model=list[schemas.PromotionResponse])
+def get_promotions(db: Session = Depends(get_db)):
+    """Público — lista promoções ativas para exibir no formulário de agendamento."""
+    from datetime import date as _date
+    today = _date.today().isoformat()
+    return db.query(models.Promotion).filter(
+        models.Promotion.is_active == True,
+        (models.Promotion.valid_until == None) | (models.Promotion.valid_until >= today),
+        (models.Promotion.valid_from  == None) | (models.Promotion.valid_from  <= today),
+    ).all()
+
+@app.get("/promotions/all/", response_model=list[schemas.PromotionResponse])
+def get_all_promotions(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    """Admin — lista todas as promoções incluindo inativas."""
+    return db.query(models.Promotion).order_by(models.Promotion.created_at.desc()).all()
+
+@app.post("/promotions/", response_model=schemas.PromotionResponse)
+def create_promotion(
+    data: schemas.PromotionCreate,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    if data.discount_type not in ("percent", "fixed"):
+        raise HTTPException(status_code=400, detail="discount_type deve ser 'percent' ou 'fixed'.")
+    if data.code:
+        data.code = data.code.strip().upper()
+        if db.query(models.Promotion).filter(models.Promotion.code == data.code).first():
+            raise HTTPException(status_code=409, detail="Já existe uma promoção com este cupom.")
+    promo = models.Promotion(**data.dict())
+    db.add(promo)
+    db.commit()
+    db.refresh(promo)
+    return promo
+
+@app.put("/promotions/{promo_id}/", response_model=schemas.PromotionResponse)
+def update_promotion(
+    promo_id: int,
+    data: schemas.PromotionUpdate,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    promo = db.query(models.Promotion).filter(models.Promotion.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promoção não encontrada.")
+    for field, value in data.dict(exclude_none=True).items():
+        if field == "code" and value:
+            value = value.strip().upper()
+        setattr(promo, field, value)
+    db.commit()
+    db.refresh(promo)
+    return promo
+
+@app.delete("/promotions/{promo_id}/")
+def delete_promotion(
+    promo_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    promo = db.query(models.Promotion).filter(models.Promotion.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promoção não encontrada.")
+    db.delete(promo)
+    db.commit()
+    return {"message": "Promoção removida."}
+
+@app.post("/promotions/validate/")
+def validate_promo(
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """Público — cliente valida cupom antes de submeter o agendamento."""
+    from datetime import date as _date
+    code = (body.get("code") or "").strip().upper()
+    service_id = body.get("service_id")
+    if not code:
+        raise HTTPException(status_code=400, detail="Informe o cupom.")
+    promo = db.query(models.Promotion).filter(
+        models.Promotion.code == code,
+        models.Promotion.is_active == True,
+    ).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Cupom inválido ou inativo.")
+    today = _date.today()
+    if promo.valid_from and today < _date.fromisoformat(promo.valid_from):
+        raise HTTPException(status_code=400, detail="Este cupom ainda não está ativo.")
+    if promo.valid_until and today > _date.fromisoformat(promo.valid_until):
+        raise HTTPException(status_code=400, detail="Este cupom está expirado.")
+    if promo.max_uses and promo.uses_count >= promo.max_uses:
+        raise HTTPException(status_code=400, detail="Este cupom atingiu o limite de usos.")
+    if service_id and promo.applies_to != "all":
+        from sqlalchemy.orm import Session as _S
+        svc = db.query(models.Service).filter(models.Service.id == service_id).first()
+        if svc and svc.category != promo.applies_to:
+            raise HTTPException(status_code=400, detail="Cupom não se aplica a este serviço.")
+    return {
+        "valid": True,
+        "name": promo.name,
+        "discount_type": promo.discount_type,
+        "discount_value": promo.discount_value,
+        "applies_to": promo.applies_to,
     }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -613,6 +1005,11 @@ async def mp_webhook(request: Request, db: Session = Depends(get_db)):
                     if fin:
                         fin.deposit_paid = amount
                         fin.balance_due  = max(fin.total_value - amount, 0)
+                        apt = db.query(models.Appointment).filter(
+                            models.Appointment.id == fin.appointment_id
+                        ).first()
+                        if apt and apt.status == "aguardando_pagamento":
+                            apt.status = "scheduled"
                         db.commit()
         except Exception:
             pass  # Log em produção; não deve derrubar o webhook
