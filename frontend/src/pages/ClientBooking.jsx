@@ -937,16 +937,16 @@ export default function ClientBooking() {
                 <p style={{ fontSize:'0.82rem', fontWeight:'700', margin:0, color:'var(--text)' }}>Como prefere pagar?</p>
                 <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.15)'}`, background: payFull ? 'rgba(216,67,139,0.08)' : 'rgba(255,255,255,0.03)' }}>
                   <input type="radio" name="pay_option" checked={payFull} onChange={() => setPayFull(true)} />
-                  <span style={{ fontSize:'0.88rem' }}>
-                    ✅ Pagar tudo agora — <strong>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong>
-                    <span style={{ display:'block', fontSize:'0.76rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>Vaga garantida na hora, sem precisar pagar no dia</span>
+                  <span style={{ fontSize:'0.88rem', color:'#fff', lineHeight:1.5 }}>
+                    ✅ Pagar tudo agora — <strong style={{ color:'#fff' }}>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong>
+                    <span style={{ display:'block', fontSize:'0.76rem', color:'rgba(255,255,255,0.5)', marginTop:'2px' }}>Vaga garantida na hora, sem precisar pagar no dia</span>
                   </span>
                 </label>
                 <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${!payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.15)'}`, background: !payFull ? 'rgba(216,67,139,0.08)' : 'rgba(255,255,255,0.03)' }}>
                   <input type="radio" name="pay_option" checked={!payFull} onChange={() => setPayFull(false)} />
-                  <span style={{ fontSize:'0.88rem' }}>
-                    📅 Sinal agora + restante no dia — <strong>R$ {sel.deposit_amount.toFixed(2).replace('.',',')} agora</strong>
-                    <span style={{ display:'block', fontSize:'0.76rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>Garante sua vaga · R$ {restante.toFixed(2).replace('.',',')} pagos no atendimento</span>
+                  <span style={{ fontSize:'0.88rem', color:'#fff', lineHeight:1.5 }}>
+                    📅 Sinal agora + restante no dia — <strong style={{ color:'#fff' }}>R$ {sel.deposit_amount.toFixed(2).replace('.',',')} agora</strong>
+                    <span style={{ display:'block', fontSize:'0.76rem', color:'rgba(255,255,255,0.5)', marginTop:'2px' }}>Garante sua vaga · R$ {restante.toFixed(2).replace('.',',')} pagos no atendimento</span>
                   </span>
                 </label>
               </div>
