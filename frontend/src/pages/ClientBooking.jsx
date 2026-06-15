@@ -925,13 +925,36 @@ export default function ClientBooking() {
             const sel = services?.find(s => s.id === parseInt(formData.service_id));
             if (!sel) return null;
             if (sel.base_price <= 50) {
+              const hasPromoSmall = promoStatus?.valid;
+              const discountedSmall = (() => {
+                if (!hasPromoSmall) return sel.base_price;
+                if (promoStatus.discount_type === 'percent') {
+                  return Math.round(sel.base_price * (1 - promoStatus.discount_value / 100) * 100) / 100;
+                }
+                return Math.max(0, Math.round((sel.base_price - promoStatus.discount_value) * 100) / 100);
+              })();
               return (
                 <p style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.5)', marginTop:'8px', marginBottom:'16px' }}>
-                  💳 Valor total: <strong style={{ color:'var(--text)' }}>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong>
+                  💳 Valor total:{' '}
+                  {hasPromoSmall && (
+                    <strong style={{ color:'rgba(255,255,255,0.3)', textDecoration:'line-through', marginRight:'6px' }}>
+                      R$ {sel.base_price.toFixed(2).replace('.',',')}
+                    </strong>
+                  )}
+                  <strong style={{ color:'var(--text)' }}>R$ {discountedSmall.toFixed(2).replace('.',',')}</strong>
                 </p>
               );
             }
-            const restante = sel.base_price - sel.deposit_amount;
+            const hasPromo = promoStatus?.valid;
+            const discountedTotal = (() => {
+              if (!hasPromo) return sel.base_price;
+              if (promoStatus.discount_type === 'percent') {
+                return Math.round(sel.base_price * (1 - promoStatus.discount_value / 100) * 100) / 100;
+              }
+              return Math.max(0, Math.round((sel.base_price - promoStatus.discount_value) * 100) / 100);
+            })();
+            const effectiveDeposit = Math.min(sel.deposit_amount, discountedTotal);
+            const restante = Math.round((discountedTotal - effectiveDeposit) * 100) / 100;
             return (
               <div style={{ marginTop:'14px', marginBottom:'16px' }}>
                 <p style={{ fontSize:'0.78rem', fontWeight:'600', margin:'0 0 10px 0', color:'rgba(255,255,255,0.5)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Como prefere pagar?</p>
@@ -952,8 +975,15 @@ export default function ClientBooking() {
                           <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>Vaga garantida · sem nada a pagar no dia</div>
                         </div>
                       </div>
-                      <div style={{ fontSize:'1rem', fontWeight:'700', color: payFull ? '#fff' : 'rgba(255,255,255,0.6)', flexShrink:0 }}>
-                        R$ {sel.base_price.toFixed(2).replace('.',',')}
+                      <div style={{ textAlign:'right', flexShrink:0 }}>
+                        {hasPromo && (
+                          <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.35)', textDecoration:'line-through' }}>
+                            R$ {sel.base_price.toFixed(2).replace('.',',')}
+                          </div>
+                        )}
+                        <div style={{ fontSize:'1rem', fontWeight:'700', color: payFull ? '#fff' : 'rgba(255,255,255,0.6)' }}>
+                          R$ {discountedTotal.toFixed(2).replace('.',',')}
+                        </div>
                       </div>
                     </div>
                   </label>
@@ -968,12 +998,14 @@ export default function ClientBooking() {
                         </div>
                         <div style={{ minWidth:0 }}>
                           <div style={{ fontSize:'0.88rem', fontWeight:'600', color:'#fff' }}>Sinal agora + restante no dia</div>
-                          <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>R$ {restante.toFixed(2).replace('.',',')} pagos no atendimento</div>
+                          <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>
+                            {restante > 0 ? `R$ ${restante.toFixed(2).replace('.',',')} pagos no atendimento` : 'Valor já coberto pelo cupom'}
+                          </div>
                         </div>
                       </div>
                       <div style={{ textAlign:'right', flexShrink:0 }}>
                         <div style={{ fontSize:'1rem', fontWeight:'700', color: !payFull ? '#fff' : 'rgba(255,255,255,0.6)' }}>
-                          R$ {sel.deposit_amount.toFixed(2).replace('.',',')}
+                          R$ {effectiveDeposit.toFixed(2).replace('.',',')}
                         </div>
                         <div style={{ fontSize:'0.68rem', color:'rgba(255,255,255,0.35)', marginTop:'1px' }}>sinal</div>
                       </div>
