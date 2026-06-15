@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import os
 import concurrent.futures
+from uuid import uuid4
 
 import models
 import schemas
@@ -38,9 +39,13 @@ app.add_middleware(
 )
 
 # ─── MERCADO PAGO ─────────────────────────────────────────────────────────────
-MP_ACCESS_TOKEN      = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "APP_USR-TESTE-123")
-MP_WEBHOOK_SECRET    = os.getenv("MERCADOPAGO_WEBHOOK_SECRET", "")
-sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
+MP_ACCESS_TOKEN   = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+MP_WEBHOOK_SECRET = os.getenv("MERCADOPAGO_WEBHOOK_SECRET", "")
+
+if not MP_ACCESS_TOKEN:
+    print("[AVISO] MERCADOPAGO_ACCESS_TOKEN não configurado — pagamentos Pix vão falhar.")
+
+sdk = mercadopago.SDK(MP_ACCESS_TOKEN or "TOKEN_NAO_CONFIGURADO")
 
 # ─── BANCO DE DADOS ───────────────────────────────────────────────────────────
 def get_db():
@@ -447,14 +452,22 @@ def _generate_pix(fin, apt, deposit_amount: float):
         "description": f"Agendamento – {service_name}",
         "payment_method_id": "pix",
         "payer": {"email": payer_email},
+        "external_reference": str(apt.id),  # permite reconciliar via webhook mesmo sem mp_payment_id
     }
-    result = sdk.payment().create(payment_data)
+    request_options = mercadopago.config.RequestOptions()
+    request_options.custom_headers = {
+        "x-idempotency-key": str(uuid4()),  # previne pagamento duplicado em caso de retry
+    }
+    result = sdk.payment().create(payment_data, request_options)
     if result.get("status") in (200, 201):
         resp = result["response"]
         fin.mp_payment_id = str(resp.get("id", ""))
         td = resp.get("point_of_interaction", {}).get("transaction_data", {})
         fin.pix_qr_code_base64 = td.get("qr_code_base64", "")
         fin.pix_copia_cola = td.get("qr_code", "")
+    else:
+        resp = result.get("response", {})
+        raise Exception(resp.get("message") or f"MP status {result.get('status')}")
 
 
 @app.patch("/appointments/{appointment_id}/status")
@@ -1006,6 +1019,16 @@ async def mp_webhook(request: Request, db: Session = Depends(get_db)):
                         .filter(models.Financial.mp_payment_id == payment_id)
                         .first()
                     )
+                    # Fallback: se mp_payment_id não bater, tenta pelo external_reference
+                    if not fin:
+                        ext_ref = payment.get("external_reference")
+                        if ext_ref:
+                            apt_fallback = db.query(models.Appointment).filter(
+                                models.Appointment.id == int(ext_ref)
+                            ).first()
+                            if apt_fallback and apt_fallback.financial:
+                                fin = apt_fallback.financial
+                                fin.mp_payment_id = payment_id  # corrige o vínculo
                     if fin:
                         fin.deposit_paid = amount
                         fin.balance_due  = max(fin.total_value - amount, 0)
