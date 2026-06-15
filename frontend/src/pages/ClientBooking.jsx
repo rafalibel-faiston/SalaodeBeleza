@@ -956,7 +956,7 @@ export default function ClientBooking() {
           <motion.button type="submit" className="btn-primary" disabled={loading}
             whileHover={!loading ? { scale:1.02, y:-2 } : {}}
             whileTap={!loading ? { scale:0.98 } : {}}>
-            {loading ? 'Gerando Pix de Segurança...' : 'Confirmar Horário →'}
+            {loading ? 'Gerando Pix...' : 'Confirmar Horário →'}
           </motion.button>
         </form>
       </motion.div>
