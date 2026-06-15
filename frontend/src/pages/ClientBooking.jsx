@@ -933,22 +933,53 @@ export default function ClientBooking() {
             }
             const restante = sel.base_price - sel.deposit_amount;
             return (
-              <div style={{ marginTop:'12px', marginBottom:'16px', display:'flex', flexDirection:'column', gap:'8px' }}>
-                <p style={{ fontSize:'0.82rem', fontWeight:'700', margin:0, color:'var(--text)' }}>Como prefere pagar?</p>
-                <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.15)'}`, background: payFull ? 'rgba(216,67,139,0.08)' : 'rgba(255,255,255,0.03)' }}>
-                  <input type="radio" name="pay_option" checked={payFull} onChange={() => setPayFull(true)} />
-                  <span style={{ fontSize:'0.88rem', color:'#fff', lineHeight:1.5 }}>
-                    ✅ Pagar tudo agora — <strong style={{ color:'#fff' }}>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong>
-                    <span style={{ display:'block', fontSize:'0.76rem', color:'rgba(255,255,255,0.5)', marginTop:'2px' }}>Vaga garantida na hora, sem precisar pagar no dia</span>
-                  </span>
-                </label>
-                <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${!payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.15)'}`, background: !payFull ? 'rgba(216,67,139,0.08)' : 'rgba(255,255,255,0.03)' }}>
-                  <input type="radio" name="pay_option" checked={!payFull} onChange={() => setPayFull(false)} />
-                  <span style={{ fontSize:'0.88rem', color:'#fff', lineHeight:1.5 }}>
-                    📅 Sinal agora + restante no dia — <strong style={{ color:'#fff' }}>R$ {sel.deposit_amount.toFixed(2).replace('.',',')} agora</strong>
-                    <span style={{ display:'block', fontSize:'0.76rem', color:'rgba(255,255,255,0.5)', marginTop:'2px' }}>Garante sua vaga · R$ {restante.toFixed(2).replace('.',',')} pagos no atendimento</span>
-                  </span>
-                </label>
+              <div style={{ marginTop:'14px', marginBottom:'16px' }}>
+                <p style={{ fontSize:'0.78rem', fontWeight:'600', margin:'0 0 10px 0', color:'rgba(255,255,255,0.5)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Como prefere pagar?</p>
+                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                  {/* Opção 1: Pagar tudo */}
+                  <label style={{ cursor:'pointer', display:'block', borderRadius:'14px', border:`2px solid ${payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.12)'}`, background: payFull ? 'rgba(216,67,139,0.10)' : 'rgba(255,255,255,0.03)', padding:'12px 14px', transition:'border-color .15s, background .15s' }}>
+                    <input type="radio" name="pay_option" checked={payFull} onChange={() => setPayFull(true)} style={{ display:'none' }} />
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'10px', flex:1, minWidth:0 }}>
+                        <div style={{ width:'18px', height:'18px', borderRadius:'50%', border:`2px solid ${payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.3)'}`, background: payFull ? 'var(--pink, #d8438b)' : 'transparent', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {payFull && <div style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#fff' }} />}
+                        </div>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:'0.88rem', fontWeight:'600', color:'#fff', display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }}>
+                            Pagar tudo agora
+                            <span style={{ fontSize:'0.68rem', fontWeight:'700', background:'var(--pink, #d8438b)', color:'#fff', padding:'1px 7px', borderRadius:'20px', letterSpacing:'0.04em' }}>RECOMENDADO</span>
+                          </div>
+                          <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>Vaga garantida · sem nada a pagar no dia</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize:'1rem', fontWeight:'700', color: payFull ? '#fff' : 'rgba(255,255,255,0.6)', flexShrink:0 }}>
+                        R$ {sel.base_price.toFixed(2).replace('.',',')}
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Opção 2: Sinal */}
+                  <label style={{ cursor:'pointer', display:'block', borderRadius:'14px', border:`2px solid ${!payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.12)'}`, background: !payFull ? 'rgba(216,67,139,0.10)' : 'rgba(255,255,255,0.03)', padding:'12px 14px', transition:'border-color .15s, background .15s' }}>
+                    <input type="radio" name="pay_option" checked={!payFull} onChange={() => setPayFull(false)} style={{ display:'none' }} />
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'12px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'10px', flex:1, minWidth:0 }}>
+                        <div style={{ width:'18px', height:'18px', borderRadius:'50%', border:`2px solid ${!payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.3)'}`, background: !payFull ? 'var(--pink, #d8438b)' : 'transparent', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {!payFull && <div style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#fff' }} />}
+                        </div>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:'0.88rem', fontWeight:'600', color:'#fff' }}>Sinal agora + restante no dia</div>
+                          <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>R$ {restante.toFixed(2).replace('.',',')} pagos no atendimento</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign:'right', flexShrink:0 }}>
+                        <div style={{ fontSize:'1rem', fontWeight:'700', color: !payFull ? '#fff' : 'rgba(255,255,255,0.6)' }}>
+                          R$ {sel.deposit_amount.toFixed(2).replace('.',',')}
+                        </div>
+                        <div style={{ fontSize:'0.68rem', color:'rgba(255,255,255,0.35)', marginTop:'1px' }}>sinal</div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
               </div>
             );
           })()}
