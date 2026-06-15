@@ -67,7 +67,7 @@ const SESSION_KEY = 'salon_agendamento';
 export default function ClientBooking() {
   const [services, setServices]         = useState([]);
   const [formData, setFormData]         = useState({ client_name:'', client_phone:'', service_id:'', scheduled_date:'', scheduled_time:'' });
-  const [payFull, setPayFull]           = useState(false);
+  const [payFull, setPayFull]           = useState(true);
   const [pendingId, setPendingId]       = useState(null);
   const [confirmedData, setConfirmedData] = useState(null);
   const [rejected, setRejected]         = useState(false);
@@ -205,11 +205,11 @@ export default function ClientBooking() {
     return () => clearInterval(interval);
   }, [confirmedData]);
 
-  // Força payFull para serviços <= R$50 quando o serviço muda
+  // Força payFull para serviços <= R$50; mantém true como padrão para os demais
   useEffect(() => {
     const sel = services?.find(s => s.id === parseInt(formData.service_id));
     if (sel && sel.base_price <= 50) setPayFull(true);
-    else setPayFull(false);
+    else setPayFull(true); // padrão: pagar tudo agora
   }, [formData.service_id, services]);
 
   const handleChange  = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
@@ -473,7 +473,11 @@ export default function ClientBooking() {
         <p>📅 {dateStr} às {timeStr}</p>
         <p>📍 Rua Ari Carneiro Fernandes, 155</p>
         <p>💰 Total: <strong>R$ {confirmedData.total_value?.toFixed(2).replace('.',',')}</strong>
-          {confirmedData.deposit_amount > 0 && ` · Sinal: R$ ${confirmedData.deposit_amount?.toFixed(2).replace('.',',')}`}</p>
+          {confirmedData.balance_due > 0
+            ? ` · Sinal agora: R$ ${confirmedData.deposit_amount?.toFixed(2).replace('.',',')} · No dia: R$ ${confirmedData.balance_due?.toFixed(2).replace('.',',')}`
+            : ' · Pagamento completo via Pix'
+          }
+        </p>
       </div>
     );
 
@@ -486,13 +490,13 @@ export default function ClientBooking() {
             animate={{ scale:[1,1.15,1] }} transition={{ duration:0.5 }}>🎉</motion.div>
           <h2 className="title">Vaga <span>Garantida!</span></h2>
           <p style={{ color:'var(--muted)', marginBottom:'28px' }}>
-            Sinal recebido! Até lá, {confirmedData.client_name?.split(' ')[0]}! 💅
+            Pagamento confirmado! Até lá, {confirmedData.client_name?.split(' ')[0]}! 💅
           </p>
           {infoCard}
           <div style={{ background:'rgba(16,185,129,0.08)', border:'1.5px solid rgba(16,185,129,0.3)', borderRadius:'16px', padding:'16px 20px', marginBottom:'28px', display:'flex', alignItems:'center', gap:'14px' }}>
             <span style={{ fontSize:'1.8rem' }}>✅</span>
             <p style={{ margin:0, fontSize:'0.88rem', color:'#065f46', fontWeight:600 }}>
-              Sinal confirmado pelo Mercado Pago. Sua vaga está reservada!
+              Pagamento confirmado pelo Mercado Pago. Sua vaga está reservada!
             </p>
           </div>
           <button className="btn-primary" style={{ background:'#555' }} onClick={resetBooking}>
@@ -511,7 +515,9 @@ export default function ClientBooking() {
         <p style={{ color:'var(--muted)', marginBottom:'28px' }}>Arrasou, {confirmedData.client_name?.split(' ')[0]}! 💅</p>
         {infoCard}
         <div style={{ marginBottom:'20px' }}>
-          <p style={{ fontWeight:'700', marginBottom:'12px' }}>Pague o sinal para garantir sua vaga:</p>
+          <p style={{ fontWeight:'700', marginBottom:'12px' }}>
+            {confirmedData.balance_due > 0 ? 'Pague o sinal para garantir sua vaga:' : 'Pague via Pix para garantir sua vaga:'}
+          </p>
           <img src={`data:image/jpeg;base64,${confirmedData.pix_qr_code_base64}`} alt="QR Code Pix" className="pix-qrcode" />
           <p style={{ marginBottom:'8px', fontWeight:'600', marginTop:'16px', fontSize:'0.9rem' }}>Pix Copia e Cola:</p>
           <textarea readOnly value={confirmedData.pix_copia_cola} className="pix-textarea" />
@@ -734,7 +740,7 @@ export default function ClientBooking() {
         viewport={{ once:true }} transition={{ duration:0.7 }}>
         <h3>✨ Como funciona o atendimento?</h3>
         <ul>
-          <li><strong style={{ color:'#fff' }}>Garantia de Horário (Sinal):</strong> Para assegurar sua vaga, solicitamos um sinal via Pix — R$ 30 para Cílios e R$ 15 para Sobrancelhas. Valor integralmente descontado no dia.</li>
+          <li><strong style={{ color:'#fff' }}>Garantia de Horário:</strong> Você pode pagar o valor total via Pix agora (vaga garantida imediatamente) ou pagar um sinal — R$ 30 para Cílios e R$ 15 para Sobrancelhas — e quitar o restante no dia do atendimento.</li>
           <li><strong style={{ color:'#fff' }}>Tempo de Procedimento:</strong> Cílios: 2h a 3h. Sobrancelhas: 40min a 1h50. Venha com tempo para garantir um resultado perfeito.</li>
           <li><strong style={{ color:'#fff' }}>Pré-procedimento:</strong> Venha sem maquiagem nos olhos e retire as lentes de contato antes do atendimento.</li>
         </ul>
@@ -914,27 +920,34 @@ export default function ClientBooking() {
             )}
           </div>
 
-          {/* Toggle pagamento sinal vs. total */}
+          {/* Opção B: pagar tudo agora (padrão) ou sinal + restante no dia */}
           {(() => {
             const sel = services?.find(s => s.id === parseInt(formData.service_id));
             if (!sel) return null;
             if (sel.base_price <= 50) {
               return (
-                <p style={{ fontSize:'0.82rem', color:'#6b7280', marginTop:'8px', marginBottom:'16px' }}>
-                  💳 Pagamento completo: <strong>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong>
+                <p style={{ fontSize:'0.82rem', color:'rgba(255,255,255,0.5)', marginTop:'8px', marginBottom:'16px' }}>
+                  💳 Valor total: <strong style={{ color:'var(--text)' }}>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong>
                 </p>
               );
             }
+            const restante = sel.base_price - sel.deposit_amount;
             return (
               <div style={{ marginTop:'12px', marginBottom:'16px', display:'flex', flexDirection:'column', gap:'8px' }}>
                 <p style={{ fontSize:'0.82rem', fontWeight:'700', margin:0, color:'var(--text)' }}>Como prefere pagar?</p>
-                <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${!payFull ? 'var(--primary, #d8438b)' : '#e5e7eb'}`, background: !payFull ? 'rgba(216,67,139,0.06)' : '#f9fafb' }}>
-                  <input type="radio" name="pay_option" checked={!payFull} onChange={() => setPayFull(false)} />
-                  <span style={{ fontSize:'0.88rem' }}>💸 Pagar sinal agora — <strong>R$ {sel.deposit_amount.toFixed(2).replace('.',',')}</strong> <span style={{ color:'#6b7280', fontWeight:'400' }}>(restante na hora)</span></span>
-                </label>
-                <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${payFull ? 'var(--primary, #d8438b)' : '#e5e7eb'}`, background: payFull ? 'rgba(216,67,139,0.06)' : '#f9fafb' }}>
+                <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.15)'}`, background: payFull ? 'rgba(216,67,139,0.08)' : 'rgba(255,255,255,0.03)' }}>
                   <input type="radio" name="pay_option" checked={payFull} onChange={() => setPayFull(true)} />
-                  <span style={{ fontSize:'0.88rem' }}>✅ Pagar tudo agora — <strong>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong></span>
+                  <span style={{ fontSize:'0.88rem' }}>
+                    ✅ Pagar tudo agora — <strong>R$ {sel.base_price.toFixed(2).replace('.',',')}</strong>
+                    <span style={{ display:'block', fontSize:'0.76rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>Vaga garantida na hora, sem precisar pagar no dia</span>
+                  </span>
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', padding:'10px 14px', borderRadius:'12px', border:`2px solid ${!payFull ? 'var(--pink, #d8438b)' : 'rgba(255,255,255,0.15)'}`, background: !payFull ? 'rgba(216,67,139,0.08)' : 'rgba(255,255,255,0.03)' }}>
+                  <input type="radio" name="pay_option" checked={!payFull} onChange={() => setPayFull(false)} />
+                  <span style={{ fontSize:'0.88rem' }}>
+                    📅 Sinal agora + restante no dia — <strong>R$ {sel.deposit_amount.toFixed(2).replace('.',',')} agora</strong>
+                    <span style={{ display:'block', fontSize:'0.76rem', color:'rgba(255,255,255,0.45)', marginTop:'2px' }}>Garante sua vaga · R$ {restante.toFixed(2).replace('.',',')} pagos no atendimento</span>
+                  </span>
                 </label>
               </div>
             );

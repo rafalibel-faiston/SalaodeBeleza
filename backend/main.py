@@ -63,23 +63,6 @@ def verify_admin(credentials: HTTPAuthorizationCredentials = Depends(_http_beare
         )
 
 
-@app.get("/health")
-def health_check(db: Session = Depends(get_db)):
-    """Diagnóstico público: confirma banco conectado e mostra contagens."""
-    db_url = os.getenv("DATABASE_URL", "sqlite")
-    db_type = "postgresql" if "postgresql" in db_url or "postgres" in db_url else "sqlite"
-    try:
-        clients_count     = db.query(models.Client).count()
-        appointments_count = db.query(models.Appointment).count()
-        return {
-            "status": "ok",
-            "db_type": db_type,
-            "clients": clients_count,
-            "appointments": appointments_count,
-        }
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
-
 # ─── SEED DE SERVIÇOS ─────────────────────────────────────────────────────────
 _CATALOG = [
     {"name": "Volume Brasileiro (Fio Y) - Aplicação",                        "category": "cilios",      "base_price": 115.0,  "deposit_amount": 30.0,  "estimated_minutes": 150},
@@ -145,6 +128,7 @@ def _run_migrations_inner():
         "ALTER TABLE financials ADD COLUMN IF NOT EXISTS pix_copia_cola TEXT",
         "ALTER TABLE financials ADD COLUMN IF NOT EXISTS promo_code TEXT",
         "ALTER TABLE financials ADD COLUMN IF NOT EXISTS discount_amount FLOAT",
+        "ALTER TABLE financials ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
     ]
 
     if db_url.startswith("sqlite"):
@@ -157,7 +141,7 @@ def _run_migrations_inner():
             needed = {
                 "clients": [("instagram","TEXT"),("favorite_volume","TEXT"),("sensitivity","TEXT"),("maintenance_frequency","INTEGER"),("no_show_count","INTEGER DEFAULT 0"),("cancellation_count","INTEGER DEFAULT 0"),("is_blocked","INTEGER DEFAULT 0")],
                 "services": [("is_active","INTEGER DEFAULT 1")],
-                "financials": [("refund_amount","REAL"),("refund_reason","TEXT"),("mp_payment_id","TEXT"),("pix_qr_code_base64","TEXT"),("pix_copia_cola","TEXT"),("promo_code","TEXT"),("discount_amount","REAL")],
+                "financials": [("refund_amount","REAL"),("refund_reason","TEXT"),("mp_payment_id","TEXT"),("pix_qr_code_base64","TEXT"),("pix_copia_cola","TEXT"),("promo_code","TEXT"),("discount_amount","REAL"),("created_at","DATETIME DEFAULT CURRENT_TIMESTAMP")],
             }
             for table, columns in needed.items():
                 existing = _cols(table)
@@ -302,6 +286,14 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
     if not service:
         raise HTTPException(status_code=404, detail="Serviço não encontrado.")
 
+    # Verifica conflito de horário (não permite dois agendamentos no mesmo slot)
+    conflito = db.query(models.Appointment).filter(
+        models.Appointment.scheduled_at == booking.scheduled_at,
+        models.Appointment.status.notin_(["rejected", "completed", "no_show"]),
+    ).first()
+    if conflito:
+        raise HTTPException(status_code=409, detail="Este horário já está ocupado. Escolha outro.")
+
     client = db.query(models.Client).filter(models.Client.phone == booking.client_phone).first()
     if not client:
         client = models.Client(
@@ -347,7 +339,9 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
             discount_amount = round(total_value * promo.discount_value / 100, 2)
         else:
             discount_amount = min(promo.discount_value, total_value)
-        promo.uses_count += 1
+        db.query(models.Promotion).filter(
+            models.Promotion.id == promo.id
+        ).update({"uses_count": models.Promotion.uses_count + 1})
         applied_promo_code = promo.code
 
     total_value = round(total_value - discount_amount, 2)
@@ -373,20 +367,17 @@ def create_booking(booking: BookingRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(appointment)
 
-    db.execute(
-        sql_text(
-            "INSERT INTO financials (appointment_id, total_value, deposit_paid, balance_due, promo_code, discount_amount)"
-            " VALUES (:aid, :tv, :dp, :bd, :pc, :da)"
-        ),
-        {"aid": appointment.id, "tv": total_value, "dp": 0.0, "bd": balance_due,
-         "pc": applied_promo_code, "da": discount_amount if discount_amount > 0 else None},
+    fin = models.Financial(
+        appointment_id=appointment.id,
+        total_value=total_value,
+        deposit_paid=0.0,
+        balance_due=balance_due,
+        promo_code=applied_promo_code,
+        discount_amount=discount_amount if discount_amount > 0 else None,
     )
+    db.add(fin)
     db.commit()
-
-    # Gera PIX imediatamente
-    fin = db.query(models.Financial).filter(
-        models.Financial.appointment_id == appointment.id
-    ).first()
+    db.refresh(fin)
     pix_error = None
     if fin and deposit > 0:
         try:
@@ -453,7 +444,7 @@ def _generate_pix(fin, apt, deposit_amount: float):
     service_name = (apt.service.name if apt.service else "Serviço")[:50]
     payment_data = {
         "transaction_amount": round(float(deposit_amount), 2),
-        "description": f"Sinal – {service_name}",
+        "description": f"Agendamento – {service_name}",
         "payment_method_id": "pix",
         "payer": {"email": payer_email},
     }
@@ -522,6 +513,13 @@ def gerar_pix(
     deposit = round(fin.total_value - fin.balance_due, 2)
     if deposit <= 0:
         raise HTTPException(status_code=400, detail="Este serviço não exige sinal (depósito = R$ 0).")
+    if fin.pix_copia_cola:
+        return {
+            "message": "Pix já gerado anteriormente.",
+            "mp_payment_id": fin.mp_payment_id,
+            "pix_copia_cola": fin.pix_copia_cola,
+            "pix_qr_code_base64": fin.pix_qr_code_base64,
+        }
     try:
         _generate_pix(fin, apt, deposit)
         db.commit()
@@ -556,6 +554,12 @@ def create_admin_booking(
         db.add(client)
         db.commit()
         db.refresh(client)
+
+    if client.is_blocked:
+        raise HTTPException(
+            status_code=403,
+            detail="Este número está bloqueado.",
+        )
 
     total_value = service.base_price
     balance_due = total_value - service.deposit_amount
@@ -1011,7 +1015,7 @@ async def mp_webhook(request: Request, db: Session = Depends(get_db)):
                         if apt and apt.status == "aguardando_pagamento":
                             apt.status = "scheduled"
                         db.commit()
-        except Exception:
-            pass  # Log em produção; não deve derrubar o webhook
+        except Exception as e:
+            print(f"[webhook] Erro ao processar payment {payment_id}: {e}")
 
     return {"status": "ok"}

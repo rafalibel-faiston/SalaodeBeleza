@@ -74,6 +74,7 @@ class Financial(Base):
     pix_copia_cola = Column(Text, nullable=True)
     promo_code = Column(String, nullable=True)
     discount_amount = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     appointment = relationship("Appointment", back_populates="financial")
 
