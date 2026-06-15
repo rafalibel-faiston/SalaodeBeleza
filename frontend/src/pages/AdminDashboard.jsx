@@ -51,21 +51,33 @@ const abrirWpp = (phone, msg) =>
   window.open(`https://wa.me/${fmtTel(phone)}?text=${encodeURIComponent(msg)}`, '_blank');
 
 const msgConfirmacao = (apt) => {
-  const sinal = (apt.financial?.total_value - apt.financial?.balance_due) || 0;
-  return `Arrasou! ✨✨\n\nSeu horário está confirmado com sucesso!\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Local: Rua Ari Carneiro Fernandes 155\n💅 Procedimento: ${apt.service?.name}\n✅ Valor: ${fmt(apt.financial?.total_value)} - Sinal ${fmt(sinal)} PG ☑️\n\nEstou te esperando pra te deixar ainda mais linda ✨💅\n\nQualquer imprevisto, me avisa com antecedência, tá bom?`;
+  const balanceDue = apt.financial?.balance_due || 0;
+  const paid = apt.financial?.deposit_paid || 0;
+  const pagamentoInfo = balanceDue > 0
+    ? `✅ Sinal recebido: ${fmt(paid)} ☑️ · Restante no dia: ${fmt(balanceDue)}`
+    : `✅ Pagamento completo: ${fmt(apt.financial?.total_value)} ☑️`;
+  return `Arrasou! ✨✨\n\nSeu horário está confirmado com sucesso!\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Local: Rua Ari Carneiro Fernandes 155\n💅 Procedimento: ${apt.service?.name}\n${pagamentoInfo}\n\nEstou te esperando pra te deixar ainda mais linda ✨💅\n\nQualquer imprevisto, me avisa com antecedência, tá bom?`;
 };
 
 const msgLembrete = (apt) =>
   `Oi, meu amor! ✨\n\nPassando pra te lembrar do seu horário comigo.\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Local: Rua Ari Carneiro Fernandes 155\n\nTe espero pra te deixar ainda mais linda ✨💅\n\nPeço que chegue no horário certinho, tá bom? 💕\nQualquer imprevisto, me avisa.`;
 
 const msgPix = (apt) => {
-  const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
-  return `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento do sinal de ${fmt(sinal)} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${apt.financial?.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
+  const balanceDue = apt.financial?.balance_due || 0;
+  const valorPix = apt.financial?.total_value - balanceDue;
+  const descricao = balanceDue > 0
+    ? `do sinal de ${fmt(valorPix)} (restante de ${fmt(balanceDue)} no dia)`
+    : `de ${fmt(valorPix)}`;
+  return `Oi, ${apt.client?.name?.split(' ')[0]}! 💕\n\nSeu horário está confirmado! Para garantir sua vaga, faça o pagamento ${descricao} via Pix 💸\n\n📋 *Pix Copia e Cola:*\n${apt.financial?.pix_copia_cola}\n\nApós o pagamento, sua vaga fica garantida! ✅\n\nQualquer dúvida é só chamar 🌸`;
 };
 
 const msgPagamentoConfirmado = (apt) => {
-  const sinal = apt.financial?.deposit_paid || (apt.financial?.total_value - apt.financial?.balance_due) || 0;
-  return `Oi, ${apt.client?.name?.split(' ')[0]}! 🎉\n\nSeu pagamento foi confirmado e sua vaga está garantida!\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Rua Ari Carneiro Fernandes 155\n💅 ${apt.service?.name}\n✅ Sinal recebido: ${fmt(sinal)}\n\nTe espero lá! 💕✨`;
+  const paid = apt.financial?.deposit_paid || 0;
+  const balanceDue = apt.financial?.balance_due || 0;
+  const confirmacao = balanceDue > 0
+    ? `✅ Sinal recebido: ${fmt(paid)} · Restante no dia: ${fmt(balanceDue)}`
+    : `✅ Pagamento completo recebido: ${fmt(paid)}`;
+  return `Oi, ${apt.client?.name?.split(' ')[0]}! 🎉\n\nSeu pagamento foi confirmado e sua vaga está garantida!\n\n📅 Data: ${fmtData(apt.scheduled_at)}\n⏰ Horário: ${fmtHora(apt.scheduled_at)}\n📍 Rua Ari Carneiro Fernandes 155\n💅 ${apt.service?.name}\n${confirmacao}\n\nTe espero lá! 💕✨`;
 };
 
 const CORES = ['#d8438b', '#128C7E', '#f59e0b', '#6366f1', '#10b981', '#ef4444'];
@@ -375,7 +387,7 @@ function AgendaTab({ appointments, onRefresh }) {
     try {
       await api.patch(`/appointments/${apt.id}/status`, { status: 'rejected' });
       onRefresh();
-    } catch { alert('Erro ao recusar.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao recusar.'); }
   };
 
   const confirmarReagendamento = async (apt) => {
@@ -384,7 +396,7 @@ function AgendaTab({ appointments, onRefresh }) {
     try {
       await api.put(`/appointments/${apt.id}/reagendar/`, { scheduled_at: new Date(`${novaData}T${novaHora}:00`).toISOString() });
       setReagendando(null); onRefresh();
-    } catch { alert('Erro ao reagendar.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao reagendar.'); }
     finally { setSalvando(false); }
   };
 
@@ -394,7 +406,7 @@ function AgendaTab({ appointments, onRefresh }) {
       const res = await api.post(`/appointments/${apt.id}/no-show/`);
       if (res.data.is_blocked) alert(`⚠️ ${apt.client?.name} foi bloqueada automaticamente por 2 ou mais faltas.`);
       onRefresh();
-    } catch { alert('Erro ao registrar falta.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao registrar falta.'); }
   };
 
   const cancelar = async (apt, motivo) => {
@@ -403,7 +415,7 @@ function AgendaTab({ appointments, onRefresh }) {
       if (motivo === 'cliente') await api.post(`/appointments/${apt.id}/cliente-cancelou/`);
       else await api.delete(`/appointments/${apt.id}/`);
       onRefresh();
-    } catch { alert('Erro ao cancelar.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao cancelar.'); }
   };
 
   const dayApts = selectedDate
@@ -862,7 +874,7 @@ function NovoAtendimentoTab({ services, onRefresh }) {
       setForm({ client_name: '', client_phone: '', service_id: '', scheduled_date: '', scheduled_time: '', medical_restrictions: '' });
       onRefresh();
       setTimeout(() => setSucesso(false), 3000);
-    } catch { alert('Erro ao criar atendimento.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao criar atendimento.'); }
     finally { setLoading(false); }
   };
 
@@ -962,7 +974,7 @@ function ClientesTab({ clients, appointments, onRefresh }) {
       });
       setEditingId(null);
       onRefresh();
-    } catch { alert('Erro ao salvar.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao salvar.'); }
     finally { setSaving(false); }
   };
 
@@ -970,7 +982,7 @@ function ClientesTab({ clients, appointments, onRefresh }) {
     const acao = c.is_blocked ? 'Desbloquear' : 'Bloquear';
     if (!window.confirm(`${acao} ${c.name}?`)) return;
     try { await api.post(`/clients/${c.id}/toggle-block/`); onRefresh(); }
-    catch { alert('Erro ao alterar bloqueio.'); }
+    catch (e) { alert(e.response?.data?.detail || 'Erro ao alterar bloqueio.'); }
   };
 
   const filtroOpts = [{ id: 'todas', label: 'Todas' }, { id: 'bloqueadas', label: '🚫 Bloqueadas' }, { id: 'faltas', label: '⚠️ Com faltas' }];
@@ -1181,7 +1193,7 @@ function CatalogoTab({ services, onRefresh }) {
         estimated_minutes: parseInt(editForm.estimated_minutes),
       });
       setEditingId(null); onRefresh();
-    } catch { alert('Erro ao salvar serviço.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao salvar serviço.'); }
     finally { setSaving(false); }
   };
 
@@ -1198,13 +1210,13 @@ function CatalogoTab({ services, onRefresh }) {
       setShowAdd(false);
       setAddForm({ name: '', category: 'cilios', base_price: '', deposit_amount: '', estimated_minutes: '' });
       onRefresh();
-    } catch { alert('Erro ao adicionar serviço.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao adicionar serviço.'); }
     finally { setSaving(false); }
   };
 
   const toggleAtivo = async (s) => {
     try { await api.put(`/services/${s.id}/`, { is_active: !s.is_active }); onRefresh(); }
-    catch { alert('Erro ao alterar status.'); }
+    catch (e) { alert(e.response?.data?.detail || 'Erro ao alterar status.'); }
   };
 
   const smallLabel = { fontSize: '0.78rem', color: C.textMuted, display: 'block', marginBottom: '4px', fontWeight: '600' };
@@ -1504,7 +1516,7 @@ function PromocoesTab() {
   };
 
   const deletar = async (id) => {
-    if (!confirm('Remover esta promoção?')) return;
+    if (!window.confirm('Remover esta promoção?')) return;
     try {
       await api.delete(`/promotions/${id}/`);
       fetchPromos();
@@ -1709,14 +1721,14 @@ function ConfiguracoesTab({ blockedSlots, onRefresh }) {
       await api.post('/blocked-slots/range/', { date_start: dateStart, date_end: fim, reason: reason || null });
       setDateStart(''); setDateEnd(''); setReason('');
       onRefresh();
-    } catch { alert('Erro ao bloquear período.'); }
+    } catch (e) { alert(e.response?.data?.detail || 'Erro ao bloquear período.'); }
     finally { setLoading(false); }
   };
 
   const desbloquearGrupo = async (ids) => {
     if (!window.confirm(`Desbloquear ${ids.length > 1 ? `os ${ids.length} dias deste período` : 'este dia'}?`)) return;
     try { await Promise.all(ids.map(id => api.delete(`/blocked-slots/${id}/`))); onRefresh(); }
-    catch { alert('Erro ao desbloquear.'); }
+    catch (e) { alert(e.response?.data?.detail || 'Erro ao desbloquear.'); }
   };
 
   const grupos = agruparBloqueios(blockedSlots);
@@ -1884,8 +1896,8 @@ export default function AdminDashboard() {
         if (newlyPaid.length > 0) {
           newlyPaid.forEach(apt => notifiedRef.current.add(apt.id));
           setPaymentAlerts(prev => [...prev, ...newlyPaid]);
-          setAppointments(fresh);
         }
+        setAppointments(fresh);
       } catch {}
     };
     const interval = setInterval(tick, 15000);
@@ -2112,7 +2124,7 @@ export default function AdminDashboard() {
                 <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>💸</span>
                 <div style={{ flex: 1 }}>
                   <p style={{ margin: 0, fontWeight: '800', color: '#065f46', fontSize: '0.93rem' }}>
-                    {apt.client?.name?.split(' ')[0]} pagou o sinal!
+                    {apt.client?.name?.split(' ')[0]} {(apt.financial?.balance_due || 0) > 0 ? 'pagou o sinal!' : 'pagou o valor completo!'}
                   </p>
                   <p style={{ margin: '2px 0 0', color: '#047857', fontSize: '0.8rem' }}>
                     {apt.service?.name} · {fmtHora(apt.scheduled_at)} · {fmtData(apt.scheduled_at)}
