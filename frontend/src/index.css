@@ -274,99 +274,30 @@ body {
   flex-shrink: 0;
 }
 
-/* ─── MARQUEE BLOCK (multi-row) ─────────────────────────────── */
-.marquee-block {
-  background: linear-gradient(160deg, #0d0612 0%, #1c0929 50%, #0f0614 100%);
-  padding: 30px 0;
+/* ─── MARQUEE ───────────────────────────────────────────────── */
+.marquee-strip {
+  background: var(--dark);
+  padding: 15px 0;
   overflow: hidden;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  white-space: nowrap;
 }
-.marquee-block::before {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 70%; height: 120%;
-  background: radial-gradient(ellipse at center, rgba(216,67,139,0.14) 0%, transparent 68%);
-  pointer-events: none;
+.marquee-track {
+  display: inline-flex;
+  animation: marquee 28s linear infinite;
 }
-.marquee-mask-l,
-.marquee-mask-r {
-  position: absolute;
-  top: 0; bottom: 0;
-  width: 110px;
-  z-index: 2;
-  pointer-events: none;
+.marquee-track span {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 0 32px;
 }
-.marquee-mask-l {
-  left: 0;
-  background: linear-gradient(to right, #0d0612, transparent);
-}
-.marquee-mask-r {
-  right: 0;
-  background: linear-gradient(to left, #0d0612, transparent);
-}
-
-.marquee-row { overflow: hidden; white-space: nowrap; }
-.marquee-track-r1 { display: inline-flex; animation: marquee 22s linear infinite; }
-.marquee-track-r2 { display: inline-flex; animation: marquee 16s linear infinite reverse; }
-.marquee-track-r3 { display: inline-flex; animation: marquee 34s linear infinite; }
-
+.marquee-track span.accent { color: var(--pink); }
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
-
-/* Row 1 — bold names */
-.marquee-item-r1 {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(0.9rem, 1.8vw, 1.15rem);
-  font-weight: 800;
-  color: rgba(255,255,255,0.7);
-  padding: 0 22px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: color 0.25s, text-shadow 0.25s;
-  cursor: default;
-}
-.marquee-item-r1:hover {
-  color: var(--pink);
-  text-shadow: 0 0 20px rgba(216,67,139,0.65);
-}
-
-/* Row 2 — italic emoji descriptions */
-.marquee-item-r2 {
-  font-family: 'Fraunces', serif;
-  font-size: clamp(0.8rem, 1.4vw, 0.98rem);
-  font-weight: 400;
-  font-style: italic;
-  color: rgba(255,255,255,0.38);
-  padding: 0 18px;
-  transition: color 0.25s;
-  cursor: default;
-}
-.marquee-item-r2:hover { color: rgba(216,67,139,0.82); }
-
-/* Row 3 — mono technical tags */
-.marquee-item-r3 {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(0.58rem, 1vw, 0.7rem);
-  font-weight: 600;
-  color: rgba(216,67,139,0.48);
-  padding: 0 26px;
-  letter-spacing: 3.5px;
-  text-transform: uppercase;
-  transition: color 0.25s;
-  cursor: default;
-}
-.marquee-item-r3:hover { color: rgba(216,67,139,0.95); }
-
-.marquee-accent   { color: var(--pink) !important; }
-.marquee-dot      { color: rgba(255,255,255,0.18) !important; padding: 0 8px !important; }
-.marquee-dot-r3   { color: rgba(216,67,139,0.22) !important; padding: 0 10px !important; }
 
 /* ─── STORY SECTION — text behind organic image ─────────────── */
 .story-section {

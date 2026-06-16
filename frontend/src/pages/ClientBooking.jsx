@@ -50,29 +50,13 @@ const MODALS = {
   sobrancelhas: { title: 'Sobrancelhas e Lamination',            text: 'A Brow Lamination alisa e engrossa os fios (durabilidade de 30 a 50 dias). Também oferecemos Design Personalizado com ou sem Henna e depilação de buço.',                                                           alert: '⚠️ Brow Lamination não é indicada para gestantes, lactantes ou pessoas em tratamento quimioterápico.',                         filter: 'Lamination Simples' },
 };
 
-const MARQUEE_ROW1 = [
+const MARQUEE_ITEMS = [
   'Volume Brasileiro','✦','Volume Egípcio','✦','Foxy Eyes','✦',
   'Brow Lamination','✦','Técnica Capping','✦','Volume Luxxo','✦',
   'Volume Glamour','✦','Design de Sobrancelhas','✦',
   'Volume Brasileiro','✦','Volume Egípcio','✦','Foxy Eyes','✦',
   'Brow Lamination','✦','Técnica Capping','✦','Volume Luxxo','✦',
   'Volume Glamour','✦','Design de Sobrancelhas','✦',
-];
-
-const MARQUEE_ROW2 = [
-  '💅 Extensão de Cílios','·','✨ Design de Olhar','·','💆 Sobrancelhas','·',
-  '🌟 Studio Premium','·','💫 Resultados Naturais','·','🦋 Realce seu Olhar','·',
-  '💅 Extensão de Cílios','·','✨ Design de Olhar','·','💆 Sobrancelhas','·',
-  '🌟 Studio Premium','·','💫 Resultados Naturais','·','🦋 Realce seu Olhar','·',
-];
-
-const MARQUEE_ROW3 = [
-  'APLICAÇÃO','·','MANUTENÇÃO','·','DESIGN','·','CAPPING','·',
-  'LAMINATION','·','REMOÇÃO','·','HENNA','·','FIOS 5D','·',
-  'FIOS 6D','·','CURVATURA M','·','CÍLIOS','·',
-  'APLICAÇÃO','·','MANUTENÇÃO','·','DESIGN','·','CAPPING','·',
-  'LAMINATION','·','REMOÇÃO','·','HENNA','·','FIOS 5D','·',
-  'FIOS 6D','·','CURVATURA M','·','CÍLIOS','·',
 ];
 
 const FALLBACK = 'https://images.unsplash.com/photo-1583241800698-e8ab01830a07?q=80&w=600';
@@ -595,6 +579,38 @@ export default function ClientBooking() {
       {/* ══════════════ HERO ══════════════════════════════════ */}
       <section className="hero-section">
 
+        {/* Floating dot particles */}
+        {[
+          { w:7,  h:7,  l:'12%', t:'22%', dur:5.1, delay:0    },
+          { w:4,  h:4,  l:'82%', t:'16%', dur:4.4, delay:0.8  },
+          { w:9,  h:9,  l:'68%', t:'58%', dur:6.2, delay:1.5  },
+          { w:3,  h:3,  l:'30%', t:'78%', dur:4.8, delay:0.3  },
+          { w:5,  h:5,  l:'91%', t:'38%', dur:5.6, delay:2.0  },
+          { w:6,  h:6,  l:'50%', t:'12%', dur:4.2, delay:1.1  },
+          { w:3,  h:3,  l:'20%', t:'52%', dur:5.3, delay:1.7  },
+          { w:5,  h:5,  l:'75%', t:'80%', dur:3.9, delay:0.5  },
+          { w:8,  h:8,  l:'8%',  t:'85%', dur:6.5, delay:2.3  },
+          { w:4,  h:4,  l:'57%', t:'43%', dur:4.7, delay:0.9  },
+          { w:3,  h:3,  l:'42%', t:'68%', dur:5.0, delay:1.4  },
+          { w:6,  h:6,  l:'88%', t:'70%', dur:4.3, delay:2.6  },
+          { w:4,  h:4,  l:'35%', t:'18%', dur:5.8, delay:0.2  },
+          { w:5,  h:5,  l:'63%', t:'88%', dur:4.1, delay:1.9  },
+          { w:3,  h:3,  l:'96%', t:'24%', dur:6.0, delay:0.7  },
+        ].map((p, i) => (
+          <motion.div key={i}
+            style={{
+              position:'absolute', width:p.w, height:p.h,
+              borderRadius:'50%',
+              background:`radial-gradient(circle, rgba(216,67,139,0.9) 0%, rgba(216,67,139,0.3) 100%)`,
+              left:p.l, top:p.t,
+              pointerEvents:'none', zIndex:1,
+              filter:'blur(0.5px)',
+            }}
+            animate={{ y:[0, -22, 0], opacity:[0.12, 0.5, 0.12], scale:[1, 1.4, 1] }}
+            transition={{ duration:p.dur, repeat:Infinity, ease:'easeInOut', delay:p.delay }}
+          />
+        ))}
+
         {/* Floating gradient blobs */}
         <motion.div className="blob blob-1" style={{ y: heroBlobY }}
           animate={{ scale:[1,1.12,1], rotate:[0,8,0] }}
@@ -663,61 +679,17 @@ export default function ClientBooking() {
         </motion.div>
       </section>
 
-      {/* ══════════════ MARQUEE BLOCK ════════════════════════ */}
-      <div className="marquee-block">
-        <div className="marquee-mask-l" />
-        <div className="marquee-mask-r" />
-
-        {/* Row 1: bold names → */}
-        <div className="marquee-row">
-          <div className="marquee-track-r1">
-            {MARQUEE_ROW1.map((item, i) => (
-              <span key={i} className={`marquee-item-r1${item === '✦' ? ' marquee-accent' : ''}`}>{item}</span>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2: emoji descriptions ← (reverse) */}
-        <div className="marquee-row">
-          <div className="marquee-track-r2">
-            {MARQUEE_ROW2.map((item, i) => (
-              <span key={i} className={`marquee-item-r2${item === '·' ? ' marquee-dot' : ''}`}>{item}</span>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 3: mono tags → (slow) */}
-        <div className="marquee-row">
-          <div className="marquee-track-r3">
-            {MARQUEE_ROW3.map((item, i) => (
-              <span key={i} className={`marquee-item-r3${item === '·' ? ' marquee-dot-r3' : ''}`}>{item}</span>
-            ))}
-          </div>
+      {/* ══════════════ MARQUEE ═══════════════════════════════ */}
+      <div className="marquee-strip">
+        <div className="marquee-track">
+          {MARQUEE_ITEMS.map((item, i) => (
+            <span key={i} className={item === '✦' ? 'accent' : ''}>{item}</span>
+          ))}
         </div>
       </div>
 
       {/* ══════════════ STORY — text behind organic image ═════ */}
       <section ref={storyRef} className="story-section">
-
-        {/* Floating sparkle particles */}
-        {[
-          { size:'1.1rem', left:'7%',  top:'18%', dur:3.4, delay:0    },
-          { size:'1.7rem', left:'87%', top:'12%', dur:4.2, delay:0.9  },
-          { size:'0.75rem',left:'78%', top:'68%', dur:3.7, delay:1.6  },
-          { size:'1.2rem', left:'14%', top:'72%', dur:4.9, delay:0.4  },
-          { size:'0.65rem',left:'52%', top:'8%',  dur:3.8, delay:2.2  },
-          { size:'0.9rem', left:'91%', top:'48%', dur:3.3, delay:1.2  },
-          { size:'1.3rem', left:'38%', top:'85%', dur:4.5, delay:0.6  },
-          { size:'0.7rem', left:'24%', top:'38%', dur:3.1, delay:1.9  },
-        ].map((p, i) => (
-          <motion.span key={i}
-            style={{ position:'absolute', fontSize:p.size, left:p.left, top:p.top,
-              color:'var(--pink)', pointerEvents:'none', zIndex:1, userSelect:'none' }}
-            animate={{ y:[0, -14, 0], opacity:[0.18, 0.55, 0.18], rotate:[0, 180, 360] }}
-            transition={{ duration:p.dur, repeat:Infinity, ease:'easeInOut', delay:p.delay }}>
-            ✦
-          </motion.span>
-        ))}
 
         {/* Huge watermark word — moves faster, sits behind organic image */}
         <motion.div className="story-bg-word" style={{ y: bgWordY }}>
