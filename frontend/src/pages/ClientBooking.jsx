@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import { motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent } from 'framer-motion';
 import api from '../api/client';
 import CalendarPicker from '../components/CalendarPicker';
 import BeforeAfterSlider from '../components/BeforeAfterSlider';
@@ -61,6 +61,13 @@ const MARQUEE_ITEMS = [
 
 const FALLBACK = 'https://images.unsplash.com/photo-1583241800698-e8ab01830a07?q=80&w=600';
 
+const TESTIMONIALS = [
+  { name: 'Ana Paula M.',    service: 'Volume Brasileiro', rating: 5, text: 'Melhor extensão de cílios que já fiz! Ficou super natural e durou mais de 5 semanas. A Giovanna é incrível, muito caprichosa no trabalho!' },
+  { name: 'Camila Rodrigues', service: 'Técnica Capping',  rating: 5, text: 'Fiz a técnica Capping e simplesmente amei! Sem precisar de manutenção por 6 semanas. Vale demais cada centavo, já marquei de novo!' },
+  { name: 'Fernanda Lima',   service: 'Brow Lamination',   rating: 5, text: 'A laminação de sobrancelha ficou perfeita! Atendimento impecável, ambiente super agradável. Indico de olhos fechados pra qualquer pessoa!' },
+  { name: 'Juliana Costa',   service: 'Volume Foxy Eyes',  rating: 5, text: 'Volume Foxy Eyes ficou exatamente como eu queria! Olhar de gatinha que eu sempre sonhei. Já indiquei pra todas as minhas amigas!' },
+];
+
 // ─────────────────────────────────────────────────────────────
 const SESSION_KEY = 'salon_agendamento';
 
@@ -82,6 +89,7 @@ export default function ClientBooking() {
   const [promoCode, setPromoCode]       = useState('');
   const [promoStatus, setPromoStatus]   = useState(null); // null | { valid, name, discount_type, discount_value } | 'error'
   const [promoError, setPromoError]     = useState('');
+  const [showHeader, setShowHeader]     = useState(false);
   const formRef  = useRef(null);
   const storyRef = useRef(null);
 
@@ -340,6 +348,8 @@ export default function ClientBooking() {
   const heroBlobY  = useTransform(scrollY, [0, 700], [0, -100]);
   const heroOp     = useTransform(scrollY, [0, 500], [1, 0]);
 
+  useMotionValueEvent(scrollY, 'change', (v) => setShowHeader(v > 80));
+
   const { scrollYProgress: sp } = useScroll({ target: storyRef, offset: ['start end', 'end start'] });
   const bgWordY  = useTransform(sp, [0, 1], ['180px', '-130px']);
   const imgY     = useTransform(sp, [0, 1], ['60px', '-60px']);
@@ -537,6 +547,35 @@ export default function ClientBooking() {
   return (
     <div>
 
+      {/* ══════════════ STICKY HEADER ═════════════════════════ */}
+      <AnimatePresence>
+        {showHeader && (
+          <motion.header className="sticky-header"
+            initial={{ y: -64, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -64, opacity: 0 }}
+            transition={{ duration: 0.3, ease }}>
+            <div className="sticky-header-inner">
+              <span className="sticky-logo">✦ <span>Giovanna</span> Soares</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <motion.a
+                  href="https://wa.me/5511993627584?text=Oi%20Giovanna%2C%20vim%20pelo%20site!"
+                  target="_blank" rel="noreferrer"
+                  className="sticky-wpp"
+                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                  💬
+                </motion.a>
+                <motion.button className="btn-pill btn-pill-primary sticky-cta"
+                  whileHover={{ scale: 1.05, y: -1 }} whileTap={{ scale: 0.97 }}
+                  onClick={() => formRef.current?.scrollIntoView({ behavior: 'smooth' })}>
+                  Agendar →
+                </motion.button>
+              </div>
+            </div>
+          </motion.header>
+        )}
+      </AnimatePresence>
+
       {/* ══════════════ HERO ══════════════════════════════════ */}
       <section className="hero-section">
 
@@ -708,6 +747,14 @@ export default function ClientBooking() {
                 <div className="catalog-card-body">
                   <h4>{title}</h4>
                   <p>{sub}</p>
+                  {(() => {
+                    const price = cardPrice(key);
+                    return price ? (
+                      <span className="catalog-price-badge">
+                        a partir de R$ {price.toFixed(2).replace('.', ',')}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
               </motion.div>
             );
@@ -733,6 +780,34 @@ export default function ClientBooking() {
         )}
       </motion.section>
       </div>{/* /catalog-section */}
+
+      {/* ══════════════ DEPOIMENTOS ═══════════════════════════ */}
+      <section className="testimonials-section">
+        <div className="section-header">
+          <p className="section-label">✦ Depoimentos</p>
+          <h2 className="section-title">O que nossas <span className="section-title-accent">clientes</span> dizem</h2>
+          <p className="section-subtitle">Resultados que falam por si mesmos</p>
+        </div>
+        <div className="testimonials-grid">
+          {TESTIMONIALS.map((t, i) => (
+            <motion.div key={i} className="testimonial-card"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.55, delay: i * 0.1, ease }}>
+              <div className="testimonial-stars">{'★'.repeat(t.rating)}</div>
+              <p className="testimonial-text">"{t.text}"</p>
+              <div className="testimonial-author">
+                <div className="testimonial-avatar">{t.name[0]}</div>
+                <div>
+                  <p className="testimonial-name">{t.name}</p>
+                  <p className="testimonial-service">{t.service}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
 
       {/* ══════════════ INFO ══════════════════════════════════ */}
       <motion.section className="info-box"
@@ -781,6 +856,13 @@ export default function ClientBooking() {
         </div>
       </motion.div>
 
+      {/* Wave: bg → dark form */}
+      <div className="wave-divider">
+        <svg viewBox="0 0 1440 70" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,0 C360,70 1080,70 1440,0 L1440,70 L0,70 Z" fill="var(--dark)"/>
+        </svg>
+      </div>
+
       {/* ══════════════ FORM ══════════════════════════════════ */}
       <div className="form-section" ref={formRef}>
         <div className="form-section-deco form-deco-1" />
@@ -795,6 +877,28 @@ export default function ClientBooking() {
       <motion.div className="container" style={{ marginBottom:'0' }}
         initial={{ opacity:0, y:40 }} whileInView={{ opacity:1, y:0 }}
         viewport={{ once:true }} transition={{ duration:0.7 }}>
+
+        {/* Step indicator */}
+        <div className="booking-steps">
+          {[
+            { label: 'Dados',     done: !!(formData.client_name && formData.client_phone) },
+            { label: 'Serviço',   done: !!formData.service_id },
+            { label: 'Data',      done: !!(formData.scheduled_date && formData.scheduled_time) },
+            { label: 'Confirmar', done: false },
+          ].map((step, i, arr) => (
+            <div key={i} className="booking-step">
+              <div style={{ display:'flex', alignItems:'center', width:'100%' }}>
+                {i > 0 && <div className={`booking-step-line${arr[i-1].done ? ' done' : ''}`} />}
+                <div className={`booking-step-dot${step.done ? ' done' : ''}`}>
+                  {step.done ? '✓' : i + 1}
+                </div>
+                {i < arr.length - 1 && <div className={`booking-step-line${step.done ? ' done' : ''}`} />}
+              </div>
+              <span className="booking-step-label">{step.label}</span>
+            </div>
+          ))}
+        </div>
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Nome Completo</label>
@@ -1024,6 +1128,23 @@ export default function ClientBooking() {
         </form>
       </motion.div>
       </div>{/* /form-section */}
+
+      {/* ══════════════ WHATSAPP FLOAT ════════════════════════ */}
+      <motion.a
+        href="https://wa.me/5511993627584?text=Oi%20Giovanna%2C%20vim%20pelo%20site!"
+        target="_blank" rel="noreferrer"
+        className="whatsapp-float"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 1.8, duration: 0.45, ease }}
+        whileHover={{ scale: 1.08, y: -4 }}
+        whileTap={{ scale: 0.95 }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="22" height="22">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+          <path d="M12 0C5.373 0 0 5.373 0 12c0 2.075.534 4.026 1.468 5.726L0 24l6.466-1.431A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.213-3.727.826.855-3.622-.235-.373A9.807 9.807 0 012.182 12C2.182 6.579 6.579 2.182 12 2.182c5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/>
+        </svg>
+        <span className="whatsapp-float-label">WhatsApp</span>
+      </motion.a>
 
       {/* ══════════════ MODAL ═════════════════════════════════ */}
       <AnimatePresence>
